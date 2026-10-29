@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&family=Space+Mono:wght@700&display=swap');
+
+:root{
+  --bg:#0f1420; --panel:#182033; --panel2:#212b44; --line:#2f3b5a;
+  --text:#eef2fb; --dim:#93a0bd; --gold:#f5c044; --gold2:#ffdf85;
+  --green:#3ddc84; --red:#ff5d6c; --blue:#5aa9ff; --violet:#b48cff;
+  --r:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif}
+body{min-height:100vh;background:
+  radial-gradient(1200px 600px at 10% -10%,#1d2a4a 0,transparent 60%),
+  radial-gradient(900px 500px at 110% 110%,#2a1d3a 0,transparent 60%),var(--bg)}
+button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
+.title{font-family:'Black Han Sans',sans-serif;letter-spacing:.02em}
+.mono{font-family:'Space Mono',monospace}
+.hidden{display:none!important}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--panel2);font-size:14px;font-weight:700}
+.chip.a{background:#163a5c;color:#9fd0ff}.chip.b{background:#3b2453;color:#dcc2ff}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dim);display:inline-block}
+.dot.online{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.offline{background:var(--red)}.dot.local{background:var(--gold)}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.shake{animation:shake .45s}

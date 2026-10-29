@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Safe Cracker · 현황판</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap{padding:18px 26px 26px;max-width:1800px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header .title{font-size:38px;color:var(--gold)}
+  .sp{flex:1}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  .tabs button{padding:10px 18px;border-radius:12px;background:var(--panel);border:2px solid var(--line);font-weight:900;font-size:18px}
+  .tabs button.on{border-color:var(--gold);color:var(--gold)}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .tools select,.tools button{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 12px;font:inherit;font-weight:700}
+  .tools .danger{color:var(--red)} .tools .gold{background:var(--gold);color:#241b00;border:0}
+  .tools .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
+
+  .summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;align-items:stretch}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 18px}
+  .stat .v{font-family:'Space Mono',monospace;font-size:32px;color:var(--gold2)}
+  .stat .k{color:var(--dim);font-size:14px}
+  .bigbar{flex:1 1 260px;align-self:center;height:24px;border-radius:99px;background:var(--panel2);overflow:hidden}
+  .bigbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--green));transition:width .8s}
+  .clock{background:#2b220c;border-color:#5a4410}
+  .clock .v{font-size:44px;color:var(--gold)}
+  .clock.low{background:#4a1520;border-color:var(--red);animation:blink 1s infinite}
+  .clock.low .v{color:#fff}
+  @keyframes blink{50%{opacity:.6}}
+
+  .main{display:grid;grid-template-columns:1fr 360px;gap:18px}
+  @media (max-width:1100px){.main{grid-template-columns:1fr}}
+  .teams{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-content:start}
+  @media (max-width:800px){.teams{grid-template-columns:repeat(3,1fr)}}
+  .team{position:relative;background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:12px 14px;text-align:left;transition:border-color .3s,transform .3s}
+  .team .h{display:flex;align-items:baseline;gap:8px}
+  .team .no{font-family:'Space Mono',monospace;font-size:32px}
+  .team .rk{margin-left:auto;font-weight:900;font-size:15px;color:var(--dim)}
+  .team .sc{font-family:'Space Mono',monospace;font-size:24px;color:var(--gold2)}
+  .team .bar{height:10px;border-radius:99px;background:var(--panel2);overflow:hidden;margin:8px 0 6px}
+  .team .bar i{display:block;height:100%;background:var(--gold);transition:width .6s}
+  .team .cnt{font-size:14px;color:var(--dim)}
+  .team.done{border-color:var(--green)} .team.done .bar i{background:var(--green)}
+  .team.empty{opacity:.35;border-style:dashed}
+  .team.flash{transform:scale(1.05);border-color:var(--gold)}
+  .team.alarm{border-color:var(--red);animation:siren .7s infinite alternate}
+  @keyframes siren{from{background:#4a1520}to{background:var(--panel)}}
+  .team .al{position:absolute;top:8px;right:10px;font-size:22px}
+
+  .lb{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;align-self:start}
+  .lb h2{margin:0 0 10px;font-family:'Black Han Sans',sans-serif;font-size:26px;color:var(--gold)}
+  .lb ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .lb li{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;background:var(--panel2);border-radius:12px;padding:8px 12px;transition:transform .4s}
+  .lb li .r{font-family:'Space Mono',monospace;font-size:22px;text-align:center}
+  .lb li .n{font-weight:900;font-size:18px}
+  .lb li .n small{color:var(--dim);font-weight:400;font-size:13px;margin-left:6px}
+  .lb li .s{font-family:'Space Mono',monospace;font-size:22px;color:var(--gold2)}
+  .lb li.top1{background:linear-gradient(90deg,#4a3a0c,var(--panel2))}
+  .lb li.top2{background:linear-gradient(90deg,#3a3f4c,var(--panel2))}
+  .lb li.top3{background:linear-gradient(90deg,#4a2e1c,var(--panel2))}
+  .lb .rules{margin-top:12px;font-size:13px;color:var(--dim);line-height:1.7}
+  .lb .rules b{color:var(--gold2)}
+
+  .feed{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;min-height:36px}
+  .feed span{background:var(--panel);border-radius:999px;padding:7px 13px;font-size:15px}
+  .feed span b{color:var(--gold2)}
+  .key{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+  .key div{background:#13253a;border-radius:14px;padding:10px 16px;font-size:19px}
+  .key b{color:var(--gold2)}
+  .hint{color:var(--dim);font-size:13px;margin-top:8px}
+
+  .ov{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,8,14,.86);z-index:10;text-align:center;padding:20px}
+  .ov h2{font-family:'Black Han Sans',sans-serif;font-size:80px;margin:0;color:var(--gold);animation:pop .7s}
+  .ov p{font-size:24px;margin:6px 0 18px}
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:18px;margin:10px 0 18px}
+  .pd{width:200px;display:flex;flex-direction:column;align-items:center;gap:8px;animation:pop .6s both}
+  .pd .medal{font-size:64px}
+  .pd .tn{font-family:'Black Han Sans',sans-serif;font-size:40px}
+  .pd .ts{font-family:'Space Mono',monospace;font-size:26px;color:var(--gold2)}
+  .pd .blk{width:100%;border-radius:14px 14px 0 0;display:grid;place-items:center;font-family:'Space Mono',monospace;font-size:48px;color:#241b00}
+  .pd.p1 .blk{height:200px;background:var(--gold)} .pd.p2 .blk{height:140px;background:#c9d1e0} .pd.p3 .blk{height:100px;background:#d99a62}
+  .pd.p1{animation-delay:.9s}.pd.p2{animation-delay:.5s}.pd.p3{animation-delay:.1s}
+  .rest{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto 16px}
+  .rest span{background:var(--panel);border-radius:999px;padding:6px 14px;font-size:16px}
+  .close{font-size:18px;padding:12px 22px;border-radius:12px;background:var(--panel2)}
+  canvas#cf{position:fixed;inset:0;pointer-events:none;z-index:11}
+  .roles{display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:220px}
+  .roles .k{font-size:17px;color:var(--text)}
+  .roles b{font-family:'Space Mono',monospace;color:var(--gold2);font-weight:700}
+  .team .role{position:absolute;bottom:10px;right:12px;font-size:13px;font-weight:900;padding:3px 9px;border-radius:999px}
+  .team .role.attack{background:#5a1f12;color:#ffc4ab}
+  .team .role.defend{background:#0f3358;color:#bcdcff}
+  .team.attack{border-color:#a8502e}
+  .clock.soon{background:#4a1520;border-color:var(--red);animation:blink .8s infinite}
+  .clock.soon .v{color:#fff}
+  .banner{position:fixed;left:0;right:0;top:32%;z-index:12;text-align:center;pointer-events:none;padding:26px 16px;
+    background:linear-gradient(90deg,transparent,rgba(8,12,22,.95) 15%,rgba(8,12,22,.95) 85%,transparent);animation:pop .5s}
+  .banner h3{margin:0;font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:84px;color:var(--gold)}
+  .banner p{margin:6px 0 0;font-size:28px}
+  .banner .a{color:#ffb08a}.banner .d{color:#9fcbff}
+  .count5{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:12;font-family:'Space Mono',monospace;font-size:260px;color:rgba(255,93,108,.85);text-shadow:0 0 40px rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="title">🏦 SAFE CRACKER 현황판</span>
+    <span class="chip"><i class="dot" id="dot"></i><span id="net">연결 중</span></span>
+    <span class="sp"></span>
+    <div class="tools">
+      <label style="color:var(--dim)">팀 수</label><select id="teamCount"></select>
+      <span class="sep"></span>
+      <label style="color:var(--dim)">라운드</label><select id="roundSec"></select>
+      <select id="roundCount"></select>
+      <button class="gold" id="timerBtn">▶ 라운드 시작</button>
+      <span class="sep"></span>
+      <button id="awardBtn">🏆 결과 발표</button>
+      <button class="danger" id="resetBtn">🗑 이 반 리셋</button>
+    </div>
+  </header>
+  <div class="tabs" id="tabs"></div>
+
+  <div class="summary">
+    <div class="stat clock" id="clock"><div class="v" id="clockV">--:--</div><div class="k" id="clockK">라운드 시작 전</div></div>
+    <div class="stat roles" id="roles"><div class="k">🗡️ 공격 <b id="atkList">-</b></div><div class="k">🛡️ 수비 <b id="defList">-</b></div></div>
+    <div class="stat"><div class="v" id="sOpen">0</div><div class="k">열린 금고</div></div>
+    <div class="stat"><div class="v" id="sDone">0/0</div><div class="k">미션 완료 팀</div></div>
+    <div class="bigbar"><i id="bigFill"></i></div>
+    <div class="stat"><div class="v" id="sPct">0%</div><div class="k">반 전체 진행</div></div>
+  </div>
+
+  <div class="main">
+    <div>
+      <div class="teams" id="teams"></div>
+      <div class="feed" id="feed"></div>
+      <div class="key">
+        <div>🗡️ <b>How often do you</b> exercise?</div>
+        <div>🛡️ I exercise <b>on Monday and Thursday.</b></div>
+        <div>🗡️ <b>Twice a week?</b></div>
+        <div>🛡️ <b>That's right!</b> / No. Listen again.</div>
+        <div>🗡️ <b>Good for you!</b> / <b>You should</b> exercise <b>more often.</b></div>
+      </div>
+      <div class="hint">팀 카드를 터치하면 빈 자리 ↔ 사용 자리로 바뀌어요. 빈 자리 금고는 모든 팀 미션에서 빠집니다.</div>
+    </div>
+    <aside class="lb">
+      <h2>🏆 실시간 순위</h2>
+      <ol id="lb"></ol>
+      <div class="rules" id="rules"></div>
+    </aside>
+  </div>
+</div>
+
+<div class="ov hidden" id="ov"><div>
+  <h2 id="ovTitle">🏆 결과 발표</h2><p id="ovText"></p>
+  <div class="podium" id="podium"></div>
+  <div class="rest" id="rest"></div>
+  <button class="close" id="ovClose">닫기</button>
+</div></div>
+<canvas id="cf"></canvas>
+<div class="banner hidden" id="banner"><h3 id="bnTitle"></h3><p id="bnText"></p></div>
+<div class="count5 hidden" id="count5"></div>
+
+<script src="data.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+let curClass = +(params.get("c") || (() => { try { return localStorage.getItem("sc_board_c"); } catch { return null; } })() || SC_CONFIG.CLASSES[0]);
+let cls = {}, unwatch = null, prevCounts = {}, firstData = true, celebratedClear = false, announcedEnd = null;
+
+const tr = SC_SCORE.TREASURE.map(x => x.pts);
+$("rules").innerHTML = `🔓 금고 열기 <b>+${SC_SCORE.BASE}</b> · 🎯 한 번에 성공 <b>+${SC_SCORE.PERFECT}</b><br>
+  🥇 선착순 1·2·3등 <b>+${SC_SCORE.FIRST.join("/")}</b> · 💎 보물 <b>+${Math.min(...tr)}~${Math.max(...tr)}</b><br>
+  🚨 같은 금고 ${SC_CONFIG.ALARM_TRIES}번 오답 → ${SC_CONFIG.ALARM_SEC}초 잠금`;
+
+function tabs(){
+  $("tabs").innerHTML = SC_CONFIG.CLASSES.map(c =>
+    `<button data-c="${c}" class="${c===curClass?'on':''}">${SC_CONFIG.GRADE}-${c}반</button>`).join("");
+}
+$("tabs").onclick = e => { const b = e.target.closest("button"); if(!b) return; select(+b.dataset.c); };
+$("teamCount").innerHTML = Array.from({length: SC_CONFIG.MAX_TEAMS - 1}, (_, i) => i + 2)
+  .map(n => `<option value="${n}">${n}팀</option>`).join("");
+$("roundSec").innerHTML = SC_CONFIG.ROUND_SEC_OPTIONS.map(s => `<option value="${s}">${SC.mmss(s * 1000)}</option>`).join("");
+$("roundSec").value = SC_CONFIG.ROUND_SEC_DEFAULT;
+/* 라운드 수: 모든 팀이 서로 만나는 한 바퀴(★)를 기본으로 */
+function roundOptions(){
+  const cyc = SC.schedule(cls).length || 8, sec = +$("roundSec").value, keep = $("roundCount").value;
+  const opts = [];
+  for (let n = 4; n <= Math.max(16, cyc * 2); n++) opts.push(n);
+  $("roundCount").innerHTML = opts.map(n => `<option value="${n}">${n}라운드 · ${Math.round(n * sec / 60 * 10) / 10}분${n === cyc ? " ★" : ""}</option>`).join("");
+  $("roundCount").value = keep && opts.includes(+keep) && $("roundCount").dataset.touched ? keep : cyc;
+}
+$("roundSec").onchange = roundOptions;
+$("roundCount").onchange = () => { $("roundCount").dataset.touched = 1; };
+
+function select(c){
+  curClass = c; try{ localStorage.setItem("sc_board_c", c); }catch{}
+  tabs(); prevCounts = {}; celebratedClear = false; cls = {}; lastRoundKey = null; delete $("roundCount").dataset.touched;
+  render(); firstData = true; announcedEnd = null; lastRoundKey = null;
+  $("ov").classList.add("hidden");
+  unwatch && unwatch();
+  unwatch = SCDB.watchClass(c, d => { cls = d || {}; render(); }, st => {
+    $("dot").className = "dot " + st;
+    $("net").textContent = {online:"실시간 연결", offline:"재연결 중…", local:"테스트 모드(이 기기만)", denied:"DB 권한 없음"}[st] || st;
+  });
+}
+
+const medal = r => r === 1 ? "🥇" : r === 2 ? "🥈" : r === 3 ? "🥉" : r;
+
+function render(){
+  const empty = cls.empty || {}, active = SC.activeTeams(cls), now = Date.now();
+  $("teamCount").value = active.length;
+  const sig = active.join(",");
+  if (sig !== render.sig) { render.sig = sig; roundOptions(); }
+  const rd = SC.round(cls);
+  const ranks = SC.ranking(cls), rankOf = Object.fromEntries(ranks.map(r => [r.t, r.score > 0 ? r.rank : null]));
+  let totalOpen = 0, totalNeed = 0, doneTeams = 0;
+  const events = [];
+  $("teams").innerHTML = SC.teams().map(t => {
+    if (empty[t]) return `<button class="team empty" data-t="${t}"><div class="h"><span class="no">${t}</span><span class="rk">빈 자리</span></div></button>`;
+    const p = SC.progressOf(cls, t), team = (cls.teams && cls.teams[t]) || {};
+    totalOpen += p.done; totalNeed += p.total;
+    const done = p.total && p.done === p.total; if (done) doneTeams++;
+    Object.entries(team.opened || {}).forEach(([s, v]) => events.push({ t, s, ...SC.rec(v) }));
+    const flash = !firstData && prevCounts[t] !== undefined && p.done > prevCounts[t];
+    prevCounts[t] = p.done;
+    const alarm = team.alarm && team.alarm > now;
+    const role = SC.role(rd, t);
+    return `<button class="team ${done?'done':''} ${flash?'flash':''} ${alarm?'alarm':''} ${role||''}" data-t="${t}">
+      ${alarm ? '<span class="al">🚨</span>' : ''}
+      ${role ? `<span class="role ${role}">${role === "attack" ? "🗡️ 공격" : "🛡️ 수비"}</span>` : ""}
+      <div class="h"><span class="no">${t}</span><span class="rk">${alarm || !rankOf[t] ? '' : medal(rankOf[t]) + (rankOf[t] > 3 ? '위' : '')}</span></div>
+      <div class="sc">${SC.scoreOf(cls, t)}<small style="font-size:14px;color:var(--dim)">점</small></div>
+      <div class="bar"><i style="width:${p.total ? p.done/p.total*100 : 0}%"></i></div>
+      <span class="cnt">${done ? "🏆 미션 완료" : `금고 ${p.done}/${p.total}`}</span></button>`;
+  }).join("");
+  setTimeout(() => document.querySelectorAll(".team.flash").forEach(el => el.classList.remove("flash")), 900);
+
+  $("lb").innerHTML = ranks.map(r => `<li class="${r.rank <= 3 && r.score > 0 ? 'top' + r.rank : ''}">
+    <span class="r">${r.score > 0 ? medal(r.rank) : "-"}</span><span class="n">${r.t}팀<small>금고 ${r.done}개</small></span><span class="s">${r.score}</span></li>`).join("");
+
+  $("sOpen").textContent = totalOpen;
+  $("sDone").textContent = `${doneTeams}/${active.length}`;
+  const pct = totalNeed ? Math.round(totalOpen / totalNeed * 100) : 0;
+  $("sPct").textContent = pct + "%"; $("bigFill").style.width = pct + "%";
+
+  events.sort((a,b) => (b.ts||0) - (a.ts||0));
+  $("feed").innerHTML = events.slice(0, 6).map(e =>
+    `<span>${e.tr || "🔓"} ${e.t}팀 → 금고 ${e.s} <b>+${e.pts}</b>${e.tries === 0 ? " 🎯" : ""}</span>`).join("");
+
+  const allClear = active.length > 1 && doneTeams === active.length;
+  if (allClear && !celebratedClear) {
+    celebratedClear = true;
+    if (!firstData) award("ALL CLEAR!", `${SC_CONFIG.GRADE}-${curClass}반 모든 금고가 열렸어요! 🎉`);
+  }
+  if (!allClear) celebratedClear = false;
+  firstData = false;
+  tick();
+}
+
+/* ---------- 라운드 진행 ---------- */
+let lastRoundKey = null, bannerT = null, lastBeepSec = null;
+function tick(){
+  const r = SC.round(cls), list = s => [...s].sort((a,b) => a-b).join(" ") || "-";
+  $("clock").classList.remove("soon");
+  $("count5").classList.add("hidden");
+  if (r.phase === "wait") {
+    $("clockV").textContent = "--:--"; $("clockK").textContent = "라운드 시작 전";
+    $("atkList").textContent = "-"; $("defList").textContent = "-";
+    $("timerBtn").textContent = "▶ 라운드 시작";
+  } else if (r.phase === "over") {
+    $("clockV").textContent = "0:00"; $("clockK").textContent = `${r.total}라운드 끝`;
+    $("atkList").textContent = "-"; $("defList").textContent = "-";
+    $("timerBtn").textContent = "▶ 새로 시작";
+  } else {
+    const sec = Math.ceil(r.roundLeft / 1000);
+    $("clockV").textContent = SC.mmss(r.roundLeft);
+    $("clockK").textContent = `라운드 ${r.idx + 1}/${r.total} · 전체 ${SC.mmss(r.totalLeft)}`;
+    const def = SC.activeTeams(cls).filter(t => !r.attackers.has(t));
+    $("atkList").textContent = list(r.attackers); $("defList").textContent = list(def);
+    $("timerBtn").textContent = "⏹ 라운드 정지";
+    if (sec <= SC_CONFIG.SWITCH_WARN_SEC) $("clock").classList.add("soon");
+    if (sec <= 5) {                      // 마지막 5초 카운트다운
+      $("count5").textContent = sec; $("count5").classList.remove("hidden");
+      if (lastBeepSec !== sec) { lastBeepSec = sec; beep(660, .12); }
+    }
+  }
+  const key = r.phase + ":" + (r.idx ?? "");
+  if (key !== lastRoundKey) {
+    const first = lastRoundKey === null; lastRoundKey = key;
+    render();
+    if (!first && r.phase === "play") {
+      const def = SC.activeTeams(cls).filter(t => !r.attackers.has(t));
+      $("bnTitle").textContent = r.idx === 0 ? "START!" : `ROUND ${r.idx + 1}`;
+      $("bnText").innerHTML = `<span class="a">🗡️ 공격 ${list(r.attackers)}</span> &nbsp; <span class="d">🛡️ 수비 ${list(def)}</span>`;
+      $("banner").classList.remove("hidden");
+      clearTimeout(bannerT); bannerT = setTimeout(() => $("banner").classList.add("hidden"), 3500);
+      beep(880, .25); setTimeout(() => beep(1175, .35), 220);
+    }
+    if (r.phase === "over" && !first && announcedEnd !== cls.timer.startAt) {
+      announcedEnd = cls.timer.startAt;
+      beep(523, .3); setTimeout(() => beep(659, .3), 250); setTimeout(() => beep(784, .6), 500);
+      award("TIME OVER!", "모든 라운드 끝! 최종 순위를 발표합니다 🥁");
+    }
+  }
+}
+setInterval(tick, 250);
+$("timerBtn").onclick = async () => {
+  audio();                               // 브라우저는 클릭한 뒤에만 소리를 낼 수 있어요
+  const r = SC.round(cls);
+  if (r.phase === "play") {
+    if (!confirm("라운드를 멈출까요? (점수는 그대로 남아요)")) return;
+    await SCDB.stopRounds(curClass);
+  } else {
+    await SCDB.startRounds(curClass, +$("roundSec").value, +$("roundCount").value);
+  }
+};
+
+/* ---------- 효과음 ---------- */
+let actx = null;
+function audio(){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {} }
+function beep(freq, dur){
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "square"; o.frequency.value = freq; g.gain.value = .08;
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + dur);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+  } catch {}
+}
+document.addEventListener("click", audio, { once: true });
+
+/* ---------- 결과 발표 ---------- */
+function award(title, text){
+  const ranks = SC.ranking(cls);
+  $("ovTitle").textContent = "🏆 " + title; $("ovText").textContent = text;
+  const top = [2, 1, 3].map(k => ranks.filter(r => r.rank === k));
+  $("podium").innerHTML = top.map((group, i) => {
+    const k = [2, 1, 3][i];
+    if (!group.length) return `<div class="pd p${k}" style="visibility:hidden"><div class="blk">${k}</div></div>`;
+    return `<div class="pd p${k}"><div class="medal">${medal(k)}</div>
+      <div class="tn">${group.map(r => r.t + "팀").join(" · ")}</div><div class="ts">${group[0].score}점</div>
+      <div class="blk">${k}</div></div>`;
+  }).join("");
+  $("rest").innerHTML = ranks.filter(r => r.rank > 3).map(r => `<span>${r.rank}위 ${r.t}팀 · ${r.score}점</span>`).join("");
+  $("ov").classList.remove("hidden");
+  setTimeout(confetti, 1100);
+}
+$("awardBtn").onclick = () => award("결과 발표", `${SC_CONFIG.GRADE}-${curClass}반 현재 순위`);
+$("ovClose").onclick = () => $("ov").classList.add("hidden");
+
+/* ---------- 빈 자리·팀 수·리셋 ---------- */
+$("teams").onclick = async e => {
+  const b = e.target.closest(".team"); if(!b) return;
+  const t = +b.dataset.t, isEmpty = !!(cls.empty && cls.empty[t]);
+  if (!confirm(isEmpty ? `${t}번 자리를 다시 사용할까요?` : `${t}번을 빈 자리로 지정할까요?\n(모든 팀 미션에서 빠져요)`)) return;
+  await SCDB.setEmpty(curClass, t, !isEmpty);
+};
+$("teamCount").onchange = async () => {
+  const n = +$("teamCount").value, emp = {};
+  SC.teams().forEach(t => { if (t > n) emp[t] = true; });
+  await SCDB.setEmptyAll(curClass, emp);
+};
+$("resetBtn").onclick = async () => {
+  if (!confirm(`${SC_CONFIG.GRADE}-${curClass}반 기록(점수·타이머)을 모두 지울까요?\n(빈 자리 설정은 유지돼요)`)) return;
+  announcedEnd = null;
+  await SCDB.resetClass(curClass, cls.empty || null);
+};
+
+/* ---------- 꽃가루 ---------- */
+function confetti(){
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv = $("cf"), ctx = cv.getContext("2d");
+  cv.width = innerWidth; cv.height = innerHeight;
+  const cols = ["#f5c044","#3ddc84","#5aa9ff","#ff5d6c","#b48cff","#fff"];
+  const ps = Array.from({length: 220}, () => ({x: Math.random()*cv.width, y: -20 - Math.random()*cv.height,
+    vx: (Math.random()-.5)*3, vy: 2 + Math.random()*4, r: 5 + Math.random()*7, c: cols[Math.random()*cols.length|0], a: Math.random()*6}));
+  let f = 0;
+  (function step(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.a += .1;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.r/2,-p.r/4,p.r,p.r/2); ctx.restore(); });
+    if (++f < 420) requestAnimationFrame(step); else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
+}
+
+tabs(); select(curClass);
+</script>
+</body>
+</html>

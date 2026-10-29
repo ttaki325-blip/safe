@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Safe Cracker · 비밀 카드</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  @page{size:A4;margin:8mm}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Noto Sans KR',sans-serif;color:#111;background:#e9ecf2}
+  .bar{position:sticky;top:0;background:#111a2c;color:#fff;padding:12px 18px;display:flex;gap:14px;align-items:center;z-index:2}
+  .bar button{background:#f5c044;border:0;border-radius:10px;padding:10px 18px;font:inherit;font-weight:900;cursor:pointer}
+  .bar label{font-size:14px}
+  .page{width:194mm;min-height:281mm;margin:10px auto;background:#fff;padding:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:139mm;gap:0;page-break-after:always;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+  .page:last-child{page-break-after:auto}
+  .card{border:1.2px dashed #9aa3b5;padding:4mm 5mm;overflow:hidden;display:flex;flex-direction:column}
+  .card .hd{display:flex;align-items:center;gap:8px;border-bottom:2px solid #111;padding-bottom:3mm;margin-bottom:2.5mm}
+  .card .no{font-family:'Space Mono',monospace;font-size:30px;background:#111;color:#f5c044;border-radius:8px;padding:0 10px;line-height:1.3}
+  .card .tt{font-family:'Black Han Sans',sans-serif;font-size:22px;line-height:1.1}
+  .card .tt small{display:block;font-family:'Noto Sans KR';font-size:10.5px;color:#666;font-weight:400}
+  .row{display:grid;grid-template-columns:13mm 1fr;gap:.5mm 2mm;padding:1.4mm 0;border-bottom:1px dotted #ccd}
+  .row:last-of-type{border-bottom:0}
+  .tag{font-family:'Space Mono',monospace;font-size:14px;text-align:center;border-radius:6px;padding:1px 0;align-self:start}
+  .tag.a{background:#d9ecff;color:#0b4a8a}.tag.b{background:#efe2ff;color:#5a2a99}
+  .q{font-size:12px;color:#555;line-height:1.25}
+  .ans{grid-column:2;font-size:14.5px;line-height:1.25;font-weight:900}
+  .chk{grid-column:2;font-size:11px;color:#2a7a3a}
+  .foot{margin-top:auto;font-size:11.5px;color:#555;text-align:center;line-height:1.35;background:#f6f6f8;border-radius:5px;padding:1.2mm}
+  .foot b{color:#111}
+  .key{grid-column:1/-1;padding:5mm 6mm}
+  .key h1{font-family:'Black Han Sans',sans-serif;margin:0 0 2mm}
+  .key p{margin:0 0 5mm;color:#a00;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:10.5px}
+  th,td{border:1px solid #bbb;padding:.8mm 1.5mm;text-align:left}
+  th{background:#f2f2f2}
+  td.code{font-family:'Space Mono',monospace;font-size:18px;text-align:center;letter-spacing:3px}
+  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5mm;margin-top:3mm;font-size:10.5px}
+  .board div{border:1px solid #ccc;border-radius:6px;padding:2mm}
+  @media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <b>🖨️ 비밀 카드 인쇄</b>
+  <label>사용할 카드 수 <select id="n"></select></label>
+  <label>카드 종류 <select id="mode"><option value="clue">🕵️ 추리 카드 (힌트로 대답)</option><option value="easy">🙂 쉬운 카드 (정답 그대로)</option></select></label>
+  <button onclick="print()">인쇄하기</button>
+  <span style="font-size:13px;opacity:.8">인쇄 설정: A4 · 배율 100% · 머리글/바닥글 끄기 · 점선대로 자르기 · 마지막 장(정답표)은 선생님만!</span>
+</div>
+<div id="out"></div>
+<script src="data.js"></script>
+<script>
+const sel = document.getElementById("n");
+sel.innerHTML = Array.from({length: SC_CONFIG.MAX_TEAMS}, (_, i) => i + 1).reverse()
+  .map(n => `<option value="${n}">${n}장</option>`).join("");
+sel.onchange = render;
+const modeSel = document.getElementById("mode");
+modeSel.onchange = render;
+
+function card(t){
+  const s = SC.safe(t);
+  const clue = modeSel.value === "clue";
+  const rows = s.acts.map((act, i) => {
+    const ag = i % 2 === 0 ? "a" : "b", n = +s.code[i];
+    return `<div class="row"><span class="tag ${ag}">A${i+1}</span>
+      <span class="q">Q${i+1}. ${SC.question(act)} <b>(요원 ${ag.toUpperCase()})</b></span>
+      <span class="ans">${clue ? SC.clueSentence(act, n, t, i) : SC.answerSentence(act, n)}</span>
+      ${clue ? `<span class="chk">✔ 확인용 정답: ${SC_ANSWERS[n].en}</span>` : ""}</div>`;
+  }).join("");
+  const foot = clue
+    ? `🤫 정답(빈도)은 말하지 말고 <b>굵은 힌트 문장</b>만 읽어 주세요.<br>맞히면 <b>"That's right!"</b> · 틀리면 <b>"No. Listen again."</b>`
+    : `질문을 들으면 카드에 있는 문장 그대로 대답하세요`;
+  return `<div class="card"><div class="hd"><span class="no">${t}</span>
+    <span class="tt">비밀 ${clue ? "힌트" : "대답"} 카드<small>SAFE ${t} · 다른 팀에게 절대 보여 주지 마세요! 🤫</small></span></div>
+    ${rows}<div class="foot">${foot}</div></div>`;
+}
+
+function render(){
+  const n = +sel.value, ts = Array.from({length: n}, (_, i) => i + 1);
+  let html = "";
+  for (let i = 0; i < ts.length; i += 4) html += `<div class="page">${ts.slice(i, i+4).map(card).join("")}</div>`;
+  html += `<div class="page" style="grid-auto-rows:auto"><div class="key">
+    <h1>🔑 교사용 정답표</h1><p>⚠️ 학생에게 보여 주지 마세요</p>
+    <table><tr><th>금고</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>코드</th></tr>
+    ${ts.map(t => { const s = SC.safe(t);
+      return `<tr><td><b>${t}</b></td>${s.acts.map((a,i) => `<td>${SC_ACTIVITIES[a][0]}<br><b>${SC_ANSWERS[+s.code[i]].en}</b></td>`).join("")}<td class="code">${s.code}</td></tr>`; }).join("")}
+    </table>
+    <div class="board">${SC_ANSWERS.slice(1).map((a,i) => `<div><b>${i+1}</b> ${a.en}. — ${a.good ? "Good for you!" : "You should ~ more often."}</div>`).join("")}</div>
+  </div></div>`;
+  document.getElementById("out").innerHTML = html;
+}
+render();
+</script>
+</body>
+</html>

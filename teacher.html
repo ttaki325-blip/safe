@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Safe Cracker · 선생님용</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .wrap{max-width:900px;margin:0 auto;padding:28px 18px 60px;line-height:1.7}
+  h1{font-family:'Black Han Sans',sans-serif;font-size:44px;color:var(--gold);margin:0}
+  .sub{color:var(--dim);margin:0 0 20px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px 22px;margin:14px 0}
+  h2{margin:0 0 10px;font-size:21px}
+  ul{margin:0;padding-left:20px} li{margin:3px 0}
+  b{color:var(--gold2)}
+  .links{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .lk{background:var(--panel2);border-radius:16px;padding:16px;text-align:center}
+  .lk a{color:var(--text);font-weight:900;font-size:19px;text-decoration:none;display:block;margin-bottom:10px}
+  .qr{background:#fff;padding:10px;border-radius:12px;display:inline-block}
+  .qr img,.qr canvas{display:block;width:170px;height:170px}
+  .copy{margin-top:10px;background:var(--bg);border-radius:10px;padding:8px 12px;font-size:14px}
+  .warn{background:#3a1d24;border-color:#6b2c38}
+  details{background:var(--panel2);border-radius:12px;padding:10px 14px;margin:8px 0}
+  summary{font-weight:700;cursor:pointer}
+  code{background:var(--bg);padding:1px 6px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="sub" style="margin:0">6학년 영어 · How often do you ~? (빈도 묻고 답하기)</p>
+  <h1>🔐 SAFE CRACKER</h1>
+  <p class="sub">친구 팀을 인터뷰해서 금고의 비밀 코드를 알아내는 듣기·말하기 미션 (선생님 전용 페이지)</p>
+
+  <section>
+    <h2>🔗 수업 링크</h2>
+    <div class="links">
+      <div class="lk"><a id="gLink" target="_blank">🕵️ 학생용 금고 앱</a><div class="qr" id="gQR"></div>
+        <div><button class="copy" data-for="gLink">📋 링크 복사</button></div></div>
+      <div class="lk"><a id="bLink" target="_blank">🏦 실시간 현황판</a><div class="qr" id="bQR"></div>
+        <div><button class="copy" data-for="bLink">📋 링크 복사</button></div></div>
+      <div class="lk"><a href="cards.html" target="_blank">🖨️ 비밀 카드 + 정답표</a>
+        <p style="color:var(--dim);font-size:14px;margin:0">A4 · 카드 4장씩 · 마지막 장은 정답표<br>한 번 인쇄하면 모든 반에서 같이 써요</p></div>
+    </div>
+    <p style="color:var(--dim);font-size:14px;margin:12px 0 0">연결 상태: <i class="dot" id="dot"></i> <span id="net">확인 중</span></p>
+  </section>
+
+  <section>
+    <h2>🎮 어떻게 하나요?</h2>
+    <ul>
+      <li>2인 1팀, 팀마다 <b>태블릿 1대 + 비밀 대답 카드 1장</b>(금고 번호 = 카드 번호).</li>
+      <li>다른 팀을 찾아가 질문 4개를 물어요: <b>"How often do you exercise?"</b></li>
+      <li><b>🕵️ 추리 모드</b>: 수비 팀은 정답 대신 힌트로 대답해요 → <b>"I exercise on Monday and Thursday."</b></li>
+      <li>공격 팀이 추리해서 말해요 → <b>"Twice a week?"</b> → 수비 팀 <b>"That's right!"</b> (틀리면 "No. Listen again.")</li>
+      <li>확인받은 대답을 대답 보드(1~9)에서 터치 → 4자리 코드 완성 → 🔓 열기.</li>
+      <li>힌트: 요일(on Monday and Thursday), 평일(from Monday to Friday), 날짜(on the 1st and the 15th of every month), Never(I don't ~ at all).</li>
+      <li>처음엔 <b>쉬운 카드</b>(정답 그대로)로 연습하고 다음 시간에 추리 카드를 써도 돼요. 카드 인쇄 화면에서 고를 수 있어요.</li>
+      <li>터치하면 앱이 할 말을 띄워 줘요: <b>Good for you!</b> / <b>You should ~ more often.</b></li>
+      <li>틀리면 "4자리 중 몇 개가 맞았는지"만 알려 주고 3초 뒤 다시 입력할 수 있어요.</li>
+      <li>미션: <b>내 금고를 뺀 나머지 전부 열기.</b> 반 전체가 다 열면 현황판에 ALL CLEAR 🎉</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>🏆 팀 대항전 점수</h2>
+    <ul id="scoreRules"></ul>
+    <p style="color:var(--dim);font-size:14px;margin:8px 0 0">💡 경쟁이 붙으면 일부러 틀린 대답을 하는 팀이 나올 수 있어요. 시작 전에 "카드 문장 그대로, 또박또박 대답하기"를 약속하고, 어기면 감점한다고 알려 주세요.</p>
+  </section>
+
+  <section>
+    <h2>👥 역할 나누기 (노는 학생 없게)</h2>
+    <ul>
+      <li><b>공격</b>: 요원 A = Q1·Q3, 요원 B = Q2·Q4 질문 + 반응. 질문하지 않는 사람이 태블릿 터치.</li>
+      <li><b>수비</b>: A1·A3 대답 = 요원 A, A2·A4 대답 = 요원 B. (앱·카드에 A/B 색으로 표시돼 있어요)</li>
+      <li>다른 팀 금고 하나를 열 때마다 각자 <b>질문 2번 + 반응 2번</b>, 우리 팀이 질문을 받을 때마다 각자 <b>대답 2번</b>.</li>
+      <li>공격 라운드에는 두 명이 같이 나가고, 수비 라운드에는 두 명이 같이 자리를 지켜요.</li>
+      <li>활동 중반에 A·B를 바꿔 주면 더 좋아요.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>⏱️ 수업 순서</h2>
+    <ul>
+      <li><b>수업 전</b>: 교실 앞 화면에 현황판 → 위쪽 반 탭 선택 → <b>팀 수</b> 선택(예: 13팀이면 14·15번이 자동으로 빈 자리).</li>
+      <li><b>시작</b>: 태블릿마다 학생용 링크(QR) → 반 → 금고 번호 선택. 한 번 고르면 기기에 저장돼요.</li>
+      <li><b>활동</b>: 현황판에서 라운드 길이(기본 2분)와 라운드 수(★ = 모든 팀이 서로 만나는 한 바퀴, 보통 6~8라운드)를 고르고 <b>▶ 라운드 시작</b>.</li>
+      <li><b>라운드</b>: 라운드마다 반 정도는 🗡️ <b>공격</b>, 나머지는 🛡️ <b>수비</b>예요. 공격 팀은 지금 수비 중인 팀 금고만 열 수 있어서, 찾아가면 그 팀이 항상 자리에 있어요. 교대 10초 전부터 현황판·태블릿에 경고, 마지막 5초는 카운트다운이 떠요.</li>
+      <li><b>교대 중 끊긴 인터뷰</b>: 듣던 대답은 태블릿에 남아 있어서(📝 표시) 다음에 그 팀을 만나면 이어서 할 수 있어요.</li>
+      <li><b>끝</b>: 마지막 라운드가 끝나면 태블릿이 잠기고 현황판에 시상대가 자동으로 떠요. 중간에 보고 싶으면 <b>🏆 결과 발표</b>.</li>
+      <li><b>다음 반</b>: 태블릿 오른쪽 위 ⚙️ → 반·번호 다시 선택. 현황판은 반 탭만 바꾸면 돼요. 같은 반을 다시 하려면 <b>🗑 이 반 리셋</b>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>❓ 자주 묻는 질문</h2>
+    <details><summary>자리 배치와 번호가 안 맞아요</summary>팀 번호는 1~15 중 아무렇게나 정해도 돼요. 비밀 카드 번호와 태블릿에서 고른 번호만 같으면 됩니다.</details>
+    <details><summary>학생이 적거나 홀수예요</summary>현황판의 팀 수를 줄이거나, 팀 카드를 터치해 빈 자리로 바꾸세요. 빈 자리 금고는 모든 팀 미션에서 빠져요. 홀수면 한 팀만 3명.</details>
+    <details><summary>태블릿이 꺼졌어요</summary>같은 기기로 다시 열면 반·번호가 그대로고, 연 금고 기록은 서버에 있어서 이어서 할 수 있어요.</details>
+    <details><summary>문장·코드를 바꾸고 싶어요</summary><code>data.js</code> 맨 위의 ② 대답 보드, ③ 활동, ④ 금고만 고치면 앱·카드·정답표가 모두 같이 바뀌어요. 바꾼 뒤엔 카드를 다시 인쇄하세요.</details>
+    <details><summary>"DB 권한 없음"이 떠요</summary>Firebase 콘솔 → Realtime Database → 규칙에서 <code>safecracker</code> 경로의 읽기·쓰기가 허용돼 있는지 확인하세요.</details>
+  </section>
+
+  <section class="warn">
+    ⚠️ <b>이 페이지와 정답표(cards.html 마지막 장)는 학생에게 공유하지 마세요.</b> 학생에게는 학생용 링크만!
+  </section>
+</div>
+<script src="data.js"></script>
+<script>
+const trp = SC_SCORE.TREASURE.map(x => x.pts);
+document.getElementById("scoreRules").innerHTML = `
+  <li>금고를 열 때마다 <b>+${SC_SCORE.BASE}점</b></li>
+  <li>오답 없이 한 번에 열면 <b>+${SC_SCORE.PERFECT}점</b> → 대충 찍지 않고 끝까지 듣게 돼요</li>
+  <li>그 금고를 반에서 1·2·3번째로 열면 <b>+${SC_SCORE.FIRST.join(" / ")}점</b> → 사람이 적은 팀부터 찾아가게 돼서 줄이 덜 생겨요</li>
+  <li>금고 안 보물(금화·돈다발·반지·다이아) <b>+${Math.min(...trp)}~${Math.max(...trp)}점</b> 무작위</li>
+  <li>같은 금고를 ${SC_CONFIG.ALARM_TRIES}번 틀리면 <b>🚨 경보: ${SC_CONFIG.ALARM_SEC}초 잠금</b> (현황판에도 표시) → "Can you say that again?"으로 다시 묻는 게 이득</li>
+  <li>점수와 규칙은 <code>data.js</code>의 ①-2 점수 규칙에서 바꿀 수 있어요</li>`;
+const base = location.href.replace(/[^/]*$/, "");
+const links = { gLink: base + "game.html", bLink: base + "board.html" };
+for (const [id, url] of Object.entries(links)) {
+  const a = document.getElementById(id); a.href = url;
+  try { new QRCode(document.getElementById(id[0] + "QR"), { text: url, width: 340, height: 340 }); }
+  catch { document.getElementById(id[0] + "QR").textContent = url; }
+}
+document.querySelectorAll(".copy").forEach(b => b.onclick = async () => {
+  try { await navigator.clipboard.writeText(document.getElementById(b.dataset.for).href); b.textContent = "✅ 복사됨"; }
+  catch { prompt("이 링크를 복사하세요", document.getElementById(b.dataset.for).href); }
+});
+SCDB.watchClass(SC_CONFIG.CLASSES[0], () => {}, st => {
+  document.getElementById("dot").className = "dot " + st;
+  document.getElementById("net").textContent = {online:"Firebase 연결 OK", offline:"연결 안 됨 (DB 주소·와이파이 확인)", local:"로컬 테스트 모드 (data.js에 DB 주소 없음)", denied:"DB 권한 없음"}[st] || st;
+});
+</script>
+</body>
+</html>
