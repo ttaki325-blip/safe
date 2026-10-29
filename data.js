@@ -96,21 +96,21 @@ const SC_ACTIVITIES = [
    코드를 바꾸면 비밀 카드도 자동으로 바뀌니, 다시 인쇄만 하면 돼요. */
 const SC_SAFES = [
   null,
-  { acts: [8, 12, 11, 3],  code: "5657" }, // 1
-  { acts: [17, 15, 10, 16],code: "8284" }, // 2
-  { acts: [0, 8, 19, 17],  code: "6313" }, // 3
-  { acts: [19, 17, 11, 16],code: "6343" }, // 4
-  { acts: [18, 8, 2, 19],  code: "6291" }, // 5
-  { acts: [16, 1, 4, 9],   code: "4963" }, // 6
-  { acts: [1, 17, 14, 7],  code: "2891" }, // 7
-  { acts: [8, 13, 6, 12],  code: "1652" }, // 8
-  { acts: [7, 1, 18, 0],   code: "8743" }, // 9
-  { acts: [14, 2, 13, 8],  code: "6552" }, // 10
-  { acts: [10, 3, 7, 17],  code: "8852" }, // 11
-  { acts: [9, 8, 18, 11],  code: "2844" }, // 12
-  { acts: [7, 4, 17, 5],   code: "4365" }, // 13
-  { acts: [3, 13, 2, 6],   code: "7189" }, // 14
-  { acts: [11, 19, 2, 17], code: "1483" }  // 15
+  { acts: [4, 19, 15, 17], code: "4526" }, // 1
+  { acts: [3, 10, 5, 2], code: "7145" }, // 2
+  { acts: [0, 9, 18, 12], code: "9448" }, // 3
+  { acts: [14, 13, 1, 16], code: "7925" }, // 4
+  { acts: [3, 6, 0, 8], code: "7543" }, // 5
+  { acts: [4, 18, 15, 7], code: "5135" }, // 6
+  { acts: [9, 7, 5, 14], code: "4794" }, // 7
+  { acts: [1, 13, 10, 17], code: "7116" }, // 8
+  { acts: [10, 6, 0, 16], code: "1839" }, // 9
+  { acts: [19, 12, 3, 17], code: "5648" }, // 10
+  { acts: [18, 9, 7, 1], code: "1374" }, // 11
+  { acts: [8, 19, 2, 5], code: "6913" }, // 12
+  { acts: [11, 8, 13, 6], code: "1527" }, // 13
+  { acts: [8, 12, 14, 16], code: "5965" }, // 14
+  { acts: [15, 1, 9, 19], code: "3155" }  // 15
 ];
 
 /* ---------- 문장 도우미 ---------- */
@@ -294,8 +294,11 @@ const SCDB = (() => {
       es.addEventListener("cancel", () => onStatus("denied"));
       es.addEventListener("auth_revoked", () => onStatus("denied"));
       es.onerror = () => {
-        onStatus("offline");
         es.close();
+        // 왜 끊겼는지 확인: 권한(401/403)이면 "DB 권한 없음", 아니면 와이파이·주소 문제
+        fetch(`${SC_CONFIG.DB_URL}/${path}.json?shallow=true`)
+          .then(r => onStatus(r.status === 401 || r.status === 403 ? "denied" : "offline"))
+          .catch(() => onStatus("offline"));
         setTimeout(open, Math.min(1000 * 2 ** retry++, 10000));
       };
     };
