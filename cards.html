@@ -63,7 +63,7 @@ function card(t){
   const s = SC.safe(t);
   const clue = modeSel.value === "clue";
   const rows = s.acts.map((act, i) => {
-    const ag = i % 2 === 0 ? "a" : "b", n = +s.code[i];
+    const ag = i % 2 === 0 ? "a" : "b", n = +s.ans[i];
     return `<div class="row"><span class="tag ${ag}">A${i+1}</span>
       <span class="q">Q${i+1}. ${SC.question(act)} <b>(요원 ${ag.toUpperCase()})</b></span>
       <span class="ans">${clue ? SC.clueSentence(act, n, t, i) : SC.answerSentence(act, n)}</span>
@@ -82,10 +82,10 @@ function render(){
   let html = "";
   for (let i = 0; i < ts.length; i += 4) html += `<div class="page">${ts.slice(i, i+4).map(card).join("")}</div>`;
   html += `<div class="page" style="grid-auto-rows:auto"><div class="key">
-    <h1>🔑 교사용 정답표</h1><p>⚠️ 학생에게 보여 주지 마세요</p>
+    <h1>🔑 교사용 정답표</h1><p>⚠️ 학생에게 보여 주지 마세요 · 암호 규칙: 가장 자주 하는 질문 번호 → 가장 덜 하는 질문 번호 순서</p>
     <table><tr><th>금고</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>코드</th></tr>
     ${ts.map(t => { const s = SC.safe(t);
-      return `<tr><td><b>${t}</b></td>${s.acts.map((a,i) => `<td>${SC_ACTIVITIES[a][0]}<br><b>${SC_ANSWERS[+s.code[i]].en}</b></td>`).join("")}<td class="code">${s.code}</td></tr>`; }).join("")}
+      return `<tr><td><b>${t}</b></td>${s.acts.map((a,i) => `<td>${SC_ACTIVITIES[a][0]}<br><b>${SC_ANSWERS[+s.ans[i]].en}</b></td>`).join("")}<td class="code">${SC.codeOf(t)}</td></tr>`; }).join("")}
     </table>
     <div class="board">${SC_ANSWERS.slice(1).map((a,i) => `<div><b>${i+1}</b> ${a.en}. — ${a.good ? "Good for you!" : "You should ~ more often."}</div>`).join("")}</div>
   </div></div>`;

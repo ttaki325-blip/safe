@@ -87,6 +87,10 @@
   .rest span{background:var(--panel);border-radius:999px;padding:6px 14px;font-size:16px}
   .close{font-size:18px;padding:12px 22px;border-radius:12px;background:var(--panel2)}
   canvas#cf{position:fixed;inset:0;pointer-events:none;z-index:11}
+  .stat.rule{background:#2b2a14;border-color:#5a5220}
+  .stat.rule .k{color:#ffe9a8}
+  .hintbar{margin:-4px 0 14px;background:#2b2a14;border:1px solid #5a5220;color:#ffe9a8;border-radius:14px;padding:12px 18px;font-size:20px}
+  .hintbar b{color:#fff}
   .roles{display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:220px}
   .roles .k{font-size:17px;color:var(--text)}
   .roles b{font-family:'Space Mono',monospace;color:var(--gold2);font-weight:700}
@@ -117,6 +121,7 @@
       <select id="roundCount"></select>
       <button class="gold" id="timerBtn">▶ 라운드 시작</button>
       <span class="sep"></span>
+      <button id="hintBtn">💡 규칙 힌트 0/3</button>
       <button id="awardBtn">🏆 결과 발표</button>
       <button class="danger" id="resetBtn">🗑 이 반 리셋</button>
     </div>
@@ -126,12 +131,14 @@
   <div class="summary">
     <div class="stat clock" id="clock"><div class="v" id="clockV">--:--</div><div class="k" id="clockK">라운드 시작 전</div></div>
     <div class="stat roles" id="roles"><div class="k">🗡️ 공격 <b id="atkList">-</b></div><div class="k">🛡️ 수비 <b id="defList">-</b></div></div>
+    <div class="stat rule"><div class="v" id="sRule">0팀</div><div class="k" id="sRuleK">🧠 규칙을 찾은 팀</div></div>
     <div class="stat"><div class="v" id="sOpen">0</div><div class="k">열린 금고</div></div>
     <div class="stat"><div class="v" id="sDone">0/0</div><div class="k">미션 완료 팀</div></div>
     <div class="bigbar"><i id="bigFill"></i></div>
     <div class="stat"><div class="v" id="sPct">0%</div><div class="k">반 전체 진행</div></div>
   </div>
 
+  <div class="hintbar hidden" id="hintBar"></div>
   <div class="main">
     <div>
       <div class="teams" id="teams"></div>
@@ -172,6 +179,7 @@ let cls = {}, unwatch = null, prevCounts = {}, firstData = true, celebratedClear
 
 const tr = SC_SCORE.TREASURE.map(x => x.pts);
 $("rules").innerHTML = `🔓 금고 열기 <b>+${SC_SCORE.BASE}</b> · 🎯 한 번에 성공 <b>+${SC_SCORE.PERFECT}</b><br>
+  🧠 규칙 발견 1·2·3등 <b>+${SC_SCORE.RULE.join("/")}</b><br>
   🥇 선착순 1·2·3등 <b>+${SC_SCORE.FIRST.join("/")}</b> · 💎 보물 <b>+${Math.min(...tr)}~${Math.max(...tr)}</b><br>
   🚨 같은 금고 ${SC_CONFIG.ALARM_TRIES}번 오답 → ${SC_CONFIG.ALARM_SEC}초 잠금`;
 
@@ -197,7 +205,7 @@ $("roundCount").onchange = () => { $("roundCount").dataset.touched = 1; };
 
 function select(c){
   curClass = c; try{ localStorage.setItem("sc_board_c", c); }catch{}
-  tabs(); prevCounts = {}; celebratedClear = false; cls = {}; lastRoundKey = null; delete $("roundCount").dataset.touched;
+  tabs(); prevCounts = {}; celebratedClear = false; cls = {}; render.finders = 0; lastRoundKey = null; delete $("roundCount").dataset.touched;
   render(); firstData = true; announcedEnd = null; lastRoundKey = null;
   $("ov").classList.add("hidden");
   unwatch && unwatch();
@@ -242,6 +250,20 @@ function render(){
     <span class="r">${r.score > 0 ? medal(r.rank) : "-"}</span><span class="n">${r.t}팀<small>금고 ${r.done}개</small></span><span class="s">${r.score}</span></li>`).join("");
 
   $("sOpen").textContent = totalOpen;
+  const finders = active.filter(t => SC.openedOf(cls, t).length)
+    .map(t => ({ t, ts: Math.min(...Object.values(cls.teams[t].opened).map(v => SC.rec(v).ts || Infinity)) }))
+    .sort((a, b) => a.ts - b.ts).map(x => x.t);
+  $("sRule").textContent = `${finders.length}팀`;
+  $("sRuleK").textContent = finders.length ? `🧠 규칙 발견: ${finders.slice(0, 6).join(", ")}${finders.length > 6 ? "…" : ""}` : "🧠 아직 아무도 몰라요";
+  if (!firstData && finders.length > (render.finders || 0) && finders.length <= 3) {
+    const t = finders[finders.length - 1];
+    showBanner(`🧠 ${t}팀 규칙 발견!`, `${finders.length}번째로 암호 규칙을 찾았어요 (+${SC_SCORE.RULE[finders.length - 1]})`);
+  }
+  render.finders = finders.length;
+  const h = cls.hint || 0;
+  $("hintBtn").textContent = `💡 규칙 힌트 ${h}/${SC_RULE_HINTS.length - 1}`;
+  $("hintBar").classList.toggle("hidden", !h);
+  if (h) $("hintBar").innerHTML = SC_RULE_HINTS.slice(1, h + 1).map((x, i) => `<div>💡 <b>힌트 ${i + 1}</b> ${x}</div>`).join("");
   $("sDone").textContent = `${doneTeams}/${active.length}`;
   const pct = totalNeed ? Math.round(totalOpen / totalNeed * 100) : 0;
   $("sPct").textContent = pct + "%"; $("bigFill").style.width = pct + "%";
@@ -293,11 +315,8 @@ function tick(){
     render();
     if (!first && r.phase === "play") {
       const def = SC.activeTeams(cls).filter(t => !r.attackers.has(t));
-      $("bnTitle").textContent = r.idx === 0 ? "START!" : `ROUND ${r.idx + 1}`;
-      $("bnText").innerHTML = `<span class="a">🗡️ 공격 ${list(r.attackers)}</span> &nbsp; <span class="d">🛡️ 수비 ${list(def)}</span>`;
-      $("banner").classList.remove("hidden");
-      clearTimeout(bannerT); bannerT = setTimeout(() => $("banner").classList.add("hidden"), 3500);
-      beep(880, .25); setTimeout(() => beep(1175, .35), 220);
+      showBanner(r.idx === 0 ? "START!" : `ROUND ${r.idx + 1}`,
+        `<span class="a">🗡️ 공격 ${list(r.attackers)}</span> &nbsp; <span class="d">🛡️ 수비 ${list(def)}</span>`);
     }
     if (r.phase === "over" && !first && announcedEnd !== cls.timer.startAt) {
       announcedEnd = cls.timer.startAt;
@@ -331,6 +350,20 @@ function beep(freq, dur){
   } catch {}
 }
 document.addEventListener("click", audio, { once: true });
+
+function showBanner(title, html){
+  $("bnTitle").textContent = title; $("bnText").innerHTML = html;
+  $("banner").classList.remove("hidden");
+  clearTimeout(bannerT); bannerT = setTimeout(() => $("banner").classList.add("hidden"), 3500);
+  beep(988, .2); setTimeout(() => beep(1319, .3), 180);
+}
+$("hintBtn").onclick = async () => {
+  audio();
+  const h = cls.hint || 0, max = SC_RULE_HINTS.length - 1;
+  if (h >= max) { if (confirm("힌트를 모두 숨길까요?")) await SCDB.setHint(curClass, 0); return; }
+  if (!confirm(`규칙 힌트 ${h + 1}단계를 공개할까요?\n"${SC_RULE_HINTS[h + 1]}"`)) return;
+  await SCDB.setHint(curClass, h + 1);
+};
 
 /* ---------- 결과 발표 ---------- */
 function award(title, text){

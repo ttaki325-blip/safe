@@ -55,6 +55,18 @@
   .codebox{display:flex;gap:10px;justify-content:center;margin:14px 0}
   .digit{width:64px;height:78px;border-radius:14px;background:#0a0e17;border:2px solid var(--line);display:grid;place-items:center;font-family:'Space Mono',monospace;font-size:42px;color:var(--green)}
   .digit.cur{border-color:var(--gold)}
+  .digit small{font-size:20px;color:var(--dim);margin-right:2px}
+  .sec{font-weight:900;font-size:15px;color:var(--dim);margin:2px 0 8px;display:flex;gap:8px;align-items:center}
+  .sec b{color:var(--gold2)}
+  .board .ab{min-height:70px;padding:8px 6px}
+  .board .ab .k{font-size:20px}.board .ab .e{font-size:15px}
+  .qkeys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .qk{background:var(--panel2);border:2px solid var(--line);border-radius:14px;padding:12px 4px;font-family:'Space Mono',monospace;font-size:24px;font-weight:700}
+  .qk small{display:block;font-family:'Noto Sans KR';font-size:12px;color:var(--dim);font-weight:400;margin-top:2px}
+  .qk:disabled{opacity:.3}
+  .rulehint{margin-top:10px;background:#2b2a14;border:1px solid #5a5220;color:#ffe9a8;border-radius:12px;padding:10px 14px;font-size:15px}
+  .rulehint.hidden{display:none}
+  hr.split{border:0;border-top:1px dashed var(--line);margin:14px 0}
   .board{grid-template-columns:repeat(3,1fr)}
   .ab{background:var(--panel2);border:2px solid var(--line);border-radius:16px;padding:14px 8px;min-height:92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
   .ab:active{transform:scale(.96)}
@@ -174,18 +186,23 @@
     </div>
     <div class="crack">
       <div class="card">
-        <div style="color:var(--dim);margin-bottom:10px">① 질문 → ② 힌트 듣고 추리 → ③ "Twice a week?"처럼 말하기 → ④ "That's right!"을 들으면 오른쪽에서 터치</div>
+        <div style="color:var(--dim);margin-bottom:10px">① 질문 → ② 힌트 듣고 "Twice a week?" → ③ "That's right!"이면 대답 기록 → ④ 4개 다 모으면 <b style="color:var(--gold2)">규칙을 찾아 암호 입력</b></div>
         <div id="qList"></div>
         <div class="react" id="react">💬 정답을 확인받고 터치하면 할 말(반응)이 여기 나와요</div>
       </div>
       <div class="card">
-        <div class="codebox" id="codeBox"></div>
+        <div class="sec">① 들은 대답 기록 <span id="ansFor"></span></div>
         <div class="grid board" id="board"></div>
+        <hr class="split">
+        <div class="sec">② 금고 암호 <b>규칙을 찾아 질문 번호를 순서대로!</b></div>
+        <div class="codebox" id="codeBox"></div>
+        <div class="qkeys" id="qkeys"></div>
         <div class="actions">
           <button class="btn" id="clearBtn">⌫ 지우기</button>
           <button class="btn go" id="openBtn" disabled>🔓 열기</button>
         </div>
         <div class="msg" id="msg"></div>
+        <div class="rulehint hidden" id="ruleHint"></div>
       </div>
     </div>
   </section>
@@ -215,13 +232,13 @@ const ME_KEY = "sc_me";
 let me = load() || {};            // {cls, team}
 let cls = null;                   // 현재 반 데이터 (DB)
 let unwatch = null;
-let target = null, entry = [], cur = 0, cooldownUntil = 0;
+let target = null, entry = [], code = [], cur = 0, cooldownUntil = 0;
 const localOpened = new Map();    // 낙관적 반영: 금고 → 점수 정보
 const triesBy = {};               // 금고별 오답 횟수
 
 const tr = SC_SCORE.TREASURE.map(x => x.pts);
 $("rules").innerHTML = `<span>🔓 금고 <b>+${SC_SCORE.BASE}</b></span><span>🎯 한 번에 성공 <b>+${SC_SCORE.PERFECT}</b></span>
-  <span>🥇 선착순 <b>+${SC_SCORE.FIRST.join("/")}</b></span><span>💎 보물 <b>+${Math.min(...tr)}~${Math.max(...tr)}</b></span>
+  <span>🧠 규칙 발견 <b>+${SC_SCORE.RULE.join("/")}</b></span><span>🥇 선착순 <b>+${SC_SCORE.FIRST.join("/")}</b></span><span>💎 보물 <b>+${Math.min(...tr)}~${Math.max(...tr)}</b></span>
   <span class="warn">🚨 같은 금고 ${SC_CONFIG.ALARM_TRIES}번 틀리면 경보 ${SC_CONFIG.ALARM_SEC}초 잠금</span>`;
 $("alarmTries").textContent = SC_CONFIG.ALARM_TRIES;
 
@@ -250,6 +267,7 @@ function onData(){
   }
   if (!$("seatStep").classList.contains("hidden")) renderSeats();
   if (!$("home").classList.contains("hidden")) renderHome();
+  if (!$("crack").classList.contains("hidden")) renderCrack();
 }
 
 /* ---------- 1. 등록 ---------- */
@@ -327,11 +345,12 @@ function canGo(r, t){ return r.phase === "play" && !r.attackers.has(t) ? 1 : 0; 
 
 /* ---------- 3. 금고 열기 ---------- */
 const drafts = {};   // 라운드가 끝나 중간에 나와도 듣던 대답은 남겨 둬요
-function saveDraft(){ if (target) drafts[target] = { entry: entry.slice(), cur }; }
+function saveDraft(){ if (target) drafts[target] = { entry: entry.slice(), code: code.slice(), cur }; }
 function startCrack(t){
   target = t;
   const d = drafts[t];
   entry = d ? d.entry.slice() : [null,null,null,null];
+  code = d && d.code ? d.code.slice() : [];
   cur = d ? d.cur : 0;
   $("crackTitle").textContent = `🔒 금고 ${t}번 팀 인터뷰`;
   showTries();
@@ -352,9 +371,21 @@ function renderCrack(){
       <span class="ans">${n ? `→ <b>${SC_ANSWERS[n].en}.</b>` : (i===cur ? "👂 힌트 듣고 추리 → 말해서 확인 → 터치" : "")}</span>
     </button>`;
   }).join("");
-  $("codeBox").innerHTML = entry.map((n,i) => `<div class="digit ${i===cur?'cur':''}">${n ?? ""}</div>`).join("");
-  $("openBtn").disabled = entry.some(n => n == null);
+  $("ansFor").textContent = `→ Q${cur + 1}`;
+  const ready = entry.every(n => n != null);
+  $("codeBox").innerHTML = [0,1,2,3].map(i =>
+    `<div class="digit ${ready && i === code.length ? 'cur' : ''}">${code[i] ?? ""}</div>`).join("");
+  $("qkeys").innerHTML = [1,2,3,4].map(q => `<button class="qk" data-q="${q}" ${!ready || code.includes(q) || code.length >= 4 ? 'disabled' : ''}>${q}
+    <small>${entry[q-1] ? SC_ANSWERS[entry[q-1]].en : ""}</small></button>`).join("");
+  $("openBtn").disabled = !ready || code.length < 4 || Date.now() < cooldownUntil;
+  const h = (cls && cls.hint) || 0;
+  $("ruleHint").classList.toggle("hidden", !h);
+  if (h) $("ruleHint").innerHTML = `💡 <b>선생님 힌트 ${h}</b> · ` + SC_RULE_HINTS.slice(1, h + 1).join(" ");
 }
+$("qkeys").onclick = e => {
+  const b = e.target.closest(".qk"); if (!b || b.disabled) return;
+  code.push(+b.dataset.q); $("msg").textContent = ""; renderCrack();
+};
 $("qList").onclick = e => { const b = e.target.closest(".qrow"); if(!b) return; cur = +b.dataset.i; renderCrack(); };
 $("board").onclick = e => {
   const b = e.target.closest(".ab"); if(!b) return;
@@ -367,7 +398,7 @@ $("board").onclick = e => {
   $("msg").textContent = "";
   renderCrack();
 };
-$("clearBtn").onclick = () => { entry[cur] = null; renderCrack(); };
+$("clearBtn").onclick = () => { if (code.length) code.pop(); else entry[cur] = null; renderCrack(); };
 $("backBtn").onclick = () => { saveDraft(); goHome(); };
 function showTries(){
   const n = triesBy[target] || 0;
@@ -381,8 +412,8 @@ $("openBtn").onclick = async () => {
   if (now < cooldownUntil || now < alarmUntil() || timeOver()) return;
   const r = SC.round(cls);
   if (SC.role(r, me.team) !== "attack" || !canGo(r, target)) { leaveCrack("라운드가 바뀌었어요"); return; }
-  const code = entry.join(""), answer = SC.safe(target).code;
-  if (code === answer) {
+  const typed = code.join(""), answer = SC.codeOf(target);
+  if (typed === answer) {
     delete drafts[target];
     const tries = triesBy[target] || 0;
     const res = SC.scoreOpen(cls, me.team, target, tries);
@@ -395,21 +426,24 @@ $("openBtn").onclick = async () => {
     try { await SCDB.markOpened(me.cls, me.team, target, info); }
     catch { $("net").textContent = "저장 실패 · 다시 연결 중"; }
   } else {
-    const right = [...code].filter((d,i) => d === answer[i]).length;
+    const right = [...typed].filter((d,i) => d === answer[i]).length;
+    code = [];
     const n = triesBy[target] = (triesBy[target] || 0) + 1;
     showTries();
     $("codeBox").classList.remove("shake"); void $("codeBox").offsetWidth; $("codeBox").classList.add("shake");
     $("msg").className = "msg bad";
     if (n % SC_CONFIG.ALARM_TRIES === 0) {
       const until = now + SC_CONFIG.ALARM_SEC * 1000;
-      $("msg").textContent = "🚨 경보! 잠금이 풀리면 다시 물어보세요.";
+      $("msg").textContent = "🚨 경보! 잠금이 풀리면 대답과 규칙을 다시 확인하세요.";
+      renderCrack();
       localAlarm = until; tick();
       SCDB.setAlarm(me.cls, me.team, until).catch(() => {});
       return;
     }
     cooldownUntil = now + SC_CONFIG.WRONG_COOLDOWN_SEC * 1000;
     $("openBtn").disabled = true;
-    $("msg").textContent = `❌ 틀렸어요! 4자리 중 ${right}개가 맞아요. 다시 물어볼까요? "Pardon?"`;
+    $("msg").textContent = `❌ 틀렸어요! 4자리 중 ${right}개가 제자리예요. 규칙을 다시 생각하거나, 대답을 다시 물어보세요.`;
+    renderCrack();
     setTimeout(() => renderCrack(), SC_CONFIG.WRONG_COOLDOWN_SEC * 1000);
   }
 };

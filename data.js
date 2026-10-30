@@ -24,6 +24,7 @@ const SC_SCORE = {
   BASE: 100,            // 금고 하나 열 때마다
   PERFECT: 50,          // 그 금고를 한 번에(오답 없이) 열면
   FIRST: [50, 30, 10],  // 그 금고를 반에서 1등·2등·3등으로 연 팀 보너스
+  RULE: [100, 60, 30],  // 암호 규칙을 반에서 1·2·3번째로 찾은 팀(첫 금고를 연 팀) 보너스
   TREASURE: [           // 금고 안 보물 (무작위)
     { icon: "🪙", name: "금화",     pts: 10, w: 40 },
     { icon: "💵", name: "돈다발",   pts: 20, w: 30 },
@@ -68,6 +69,14 @@ const SC_CLUES = [
   ["at all", "at all. I don't like it"]                                               // 9 Never
 ];
 
+/* ②-3 규칙 힌트: 현황판에서 선생님이 한 단계씩 공개 ----------------- */
+const SC_RULE_HINTS = [
+  null,
+  "암호는 질문 번호(1~4)를 어떤 순서로 늘어놓은 거예요.",
+  "들은 대답(빈도)을 서로 비교해 보세요. 무엇의 순서일까요?",
+  "가장 자주 하는 것 → 가장 덜 하는 것 순서예요!"
+];
+
 /* ③ 활동 목록: [질문용(your), 대답용(my)] ------------------ */
 const SC_ACTIVITIES = [
   ["exercise", "exercise"],                         // 0
@@ -92,25 +101,27 @@ const SC_ACTIVITIES = [
   ["go to bed early", "go to bed early"]            // 19
 ];
 
-/* ④ 금고 15개: 질문 4개(활동 번호) + 코드(대답 보드 번호 4개) ------
-   코드를 바꾸면 비밀 카드도 자동으로 바뀌니, 다시 인쇄만 하면 돼요. */
+/* ④ 금고 15개: 질문 4개(활동 번호) + 대답(대답 보드 번호 4개, 서로 달라야 해요) -----
+   암호는 자동으로 정해져요: 가장 자주 하는 질문 번호 → 가장 덜 하는 질문 번호 순서.
+   예) ans "5183" → Q2(1 Every day) Q4(3) Q1(5) Q3(8) → 암호 2413
+   대답을 바꾸면 비밀 카드·정답표·암호가 모두 같이 바뀌니, 다시 인쇄만 하면 돼요. */
 const SC_SAFES = [
   null,
-  { acts: [4, 19, 15, 17], code: "4526" }, // 1
-  { acts: [3, 10, 5, 2], code: "7145" }, // 2
-  { acts: [0, 9, 18, 12], code: "9448" }, // 3
-  { acts: [14, 13, 1, 16], code: "7925" }, // 4
-  { acts: [3, 6, 0, 8], code: "7543" }, // 5
-  { acts: [4, 18, 15, 7], code: "5135" }, // 6
-  { acts: [9, 7, 5, 14], code: "4794" }, // 7
-  { acts: [1, 13, 10, 17], code: "7116" }, // 8
-  { acts: [10, 6, 0, 16], code: "1839" }, // 9
-  { acts: [19, 12, 3, 17], code: "5648" }, // 10
-  { acts: [18, 9, 7, 1], code: "1374" }, // 11
-  { acts: [8, 19, 2, 5], code: "6913" }, // 12
-  { acts: [11, 8, 13, 6], code: "1527" }, // 13
-  { acts: [8, 12, 14, 16], code: "5965" }, // 14
-  { acts: [15, 1, 9, 19], code: "3155" }  // 15
+  { acts: [5, 15, 4, 1], ans: "5314" }, // 1  → 암호 3241
+  { acts: [0, 14, 10, 18], ans: "4715" }, // 2  → 암호 3142
+  { acts: [11, 3, 12, 19], ans: "1894" }, // 3  → 암호 1423
+  { acts: [7, 2, 9, 13], ans: "8319" }, // 4  → 암호 3214
+  { acts: [15, 4, 8, 16], ans: "3671" }, // 5  → 암호 4123
+  { acts: [10, 14, 2, 6], ans: "1394" }, // 6  → 암호 1243
+  { acts: [16, 17, 0, 3], ans: "9734" }, // 7  → 암호 3421
+  { acts: [9, 17, 5, 11], ans: "4751" }, // 8  → 암호 4132
+  { acts: [13, 9, 18, 19], ans: "9452" }, // 9  → 암호 4231
+  { acts: [3, 1, 15, 11], ans: "6541" }, // 10  → 암호 4321
+  { acts: [10, 12, 7, 4], ans: "1965" }, // 11  → 암호 1432
+  { acts: [6, 5, 0, 2], ans: "5913" }, // 12  → 암호 3412
+  { acts: [8, 13, 6, 7], ans: "7248" }, // 13  → 암호 2314
+  { acts: [8, 13, 1, 17], ans: "4957" }, // 14  → 암호 1342
+  { acts: [18, 16, 9, 5], ans: "4529" }  // 15  → 암호 3124
 ];
 
 /* ---------- 문장 도우미 ---------- */
@@ -133,6 +144,9 @@ const SC = {
     return SC_ANSWERS[n].good ? "Good for you!" : `You should ${SC_ACTIVITIES[act][0]} more often.`;
   },
   safe(n) { return SC_SAFES[n]; },
+  /* 암호 규칙: 질문 번호를 '자주 하는 것 → 덜 하는 것' 순서로 (대답 보드 번호가 작을수록 자주) */
+  codeOf(n) { const a = SC_SAFES[n].ans; return [0, 1, 2, 3].sort((i, j) => a[i] - a[j]).map(i => i + 1).join(""); },
+  ansOf(n, q) { return +SC_SAFES[n].ans[q]; },
   teams() { return Array.from({ length: SC_CONFIG.MAX_TEAMS }, (_, i) => i + 1); },
   activeTeams(cls) {
     const empty = (cls && cls.empty) || {};
@@ -177,6 +191,10 @@ const SC = {
   /* 금고를 열 때 점수 계산 */
   scoreOpen(cls, me, safe, wrongTries) {
     const lines = [{ label: "금고 열기", pts: SC_SCORE.BASE }];
+    if (!SC.openedOf(cls, me).length) {                     // 우리 팀 첫 금고 = 규칙 발견!
+      const found = SC.activeTeams(cls).filter(t => t !== me && SC.openedOf(cls, t).length).length;
+      if (found < SC_SCORE.RULE.length) lines.push({ label: `🧠 규칙 발견 ${found + 1}등`, pts: SC_SCORE.RULE[found] });
+    }
     if (!wrongTries) lines.push({ label: "퍼펙트 (한 번에 성공)", pts: SC_SCORE.PERFECT });
     const order = SC.openersOf(cls, safe, me);
     if (order < SC_SCORE.FIRST.length) lines.push({ label: `선착순 ${order + 1}등`, pts: SC_SCORE.FIRST[order] });
@@ -326,6 +344,7 @@ const SCDB = (() => {
     setAlarm: (c, team, until) => put(pathFor(c, `teams/${team}/alarm`), until || null),
     startRounds: (c, roundSec, rounds) => put(pathFor(c, "timer"), { startAt: { ".sv": "timestamp" }, roundSec, rounds }),
     stopRounds: c => put(pathFor(c, "timer"), null),
+    setHint: (c, level) => put(pathFor(c, "hint"), level || null),
     setEmpty: (c, team, isEmpty) => put(pathFor(c, `empty/${team}`), isEmpty ? true : null),
     setEmptyAll: (c, emptyObj) => put(pathFor(c, "empty"), Object.keys(emptyObj).length ? emptyObj : null),
     resetClass: (c, keepEmpty) => put(pathFor(c), { empty: keepEmpty || null, resetAt: { ".sv": "timestamp" } }),
