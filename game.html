@@ -508,12 +508,9 @@ $("openBtn").onclick = async () => {
     try { await SCDB.markOpened(me.cls, me.team, target, info); }
     catch { $("net").textContent = "저장 실패 · 다시 연결 중"; }
   } else {
-    if (badAns.length) {
-      ansWrong = new Set(badAns); feedback = null;     // 대답이 틀리면 순서 색은 보여 주지 않아요
-    } else {
-      const marks = [...typed].map((d,i) => d === answer[i]);
-      feedback = { key: codeKey(), marks };          // 카드는 그대로 두고 색으로 알려 줘요
-    }
+    // 칸마다: 자리도 맞고 + 그 카드의 대답도 맞게 들었을 때만 파란색 (어느 질문을 잘못 들었는지는 알려 주지 않아요)
+    const marks = [...typed].map((d, i) => d === answer[i] && !badAns.includes(+d - 1));
+    feedback = { key: codeKey(), marks };            // 카드는 그대로 두고 색으로 알려 줘요
     const n = triesBy[target] = (triesBy[target] || 0) + 1;
     showTries();
     $("codeBox").classList.remove("shake"); void $("codeBox").offsetWidth; $("codeBox").classList.add("shake");
@@ -528,9 +525,7 @@ $("openBtn").onclick = async () => {
     }
     cooldownUntil = now + SC_CONFIG.WRONG_COOLDOWN_SEC * 1000;
     $("openBtn").disabled = true;
-    $("msg").textContent = badAns.length
-      ? `❌ 잘못 들은 대답이 있어요! 빨간 질문(${badAns.map(i => "Q" + (i + 1)).join(", ")})을 다시 물어보세요: "Can you say that again?"`
-      : `❌ 대답은 다 맞았어요! 순서가 틀렸어요. 🔵 파란 카드는 제자리, 🔴 빨간 카드는 자리가 틀렸어요.`;
+    $("msg").textContent = `❌ 열리지 않아요! 🔵 파랑 = 맞아요 · 🔴 빨강 = 자리가 틀렸거나, 대답을 잘못 들었을 수도 있어요.`;
     renderCrack();
     setTimeout(() => renderCrack(), SC_CONFIG.WRONG_COOLDOWN_SEC * 1000);
   }
