@@ -109,6 +109,12 @@
   .count5{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:12;font-family:'Space Mono',monospace;font-size:260px;color:rgba(255,93,108,.85);text-shadow:0 0 40px rgba(0,0,0,.6)}
   @media (max-height:760px){.ov h2{font-size:56px}.pd .medal{font-size:44px}.pd .tn{font-size:30px}
     .pd.p1 .blk{height:130px}.pd.p2 .blk{height:90px}.pd.p3 .blk{height:64px}}
+  /* 접속 QR 창 */
+  .qrov .qrbox{background:#fff;border-radius:24px;padding:22px;display:inline-block;margin:10px 0 14px}
+  .qrov #qrImg img,.qrov #qrImg canvas{display:block;width:min(56vh,440px)!important;height:min(56vh,440px)!important;image-rendering:pixelated}
+  .qrov h2{font-size:56px!important}
+  .qrov p{font-size:22px;margin:4px 0}
+  .qrov .url{font-family:'Space Mono',monospace;font-size:18px;color:var(--gold2);word-break:break-all}
 </style>
 </head>
 <body>
@@ -125,6 +131,7 @@
       <button class="gold" id="timerBtn">▶ 라운드 시작</button>
       <span class="sep"></span>
       <button id="hintBtn">💡 규칙 힌트 0/3</button>
+      <button id="qrBtn">📱 접속 QR</button>
       <button id="awardBtn">🏆 결과 발표</button>
       <button class="danger" id="resetBtn">🗑 이 반 리셋</button>
     </div>
@@ -169,10 +176,18 @@
   <div class="rest" id="rest"></div>
   <button class="close" id="ovClose">닫기</button>
 </div></div>
+<div class="ov qrov hidden" id="qrOv"><button class="x" id="qrX" title="닫기">✕</button><div>
+  <h2>📱 다시 접속하기</h2>
+  <p>태블릿 카메라로 찍으면 <b>하던 반·팀으로 바로</b> 돌아가요</p>
+  <div class="qrbox"><div id="qrImg"></div></div>
+  <div class="url" id="qrUrl"></div>
+  <p style="color:var(--dim);font-size:17px;margin-top:10px">처음 접속하는 태블릿은 반 → 팀 번호를 고르세요 · 게임은 그대로 계속 진행돼요</p>
+</div></div>
 <canvas id="cf"></canvas>
 <div class="banner hidden" id="banner"><h3 id="bnTitle"></h3><p id="bnText"></p></div>
 <div class="count5 hidden" id="count5"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="data.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -390,7 +405,23 @@ $("awardBtn").onclick = () => award("결과 발표", `${SC_CONFIG.GRADE}-${curCl
 const closeAward = () => $("ov").classList.add("hidden");
 $("ovClose").onclick = closeAward; $("ovX").onclick = closeAward;
 $("ov").addEventListener("click", e => { if (e.target === $("ov")) closeAward(); });   // 바깥 어두운 곳을 눌러도 닫혀요
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeAward(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeAward(); closeQr(); } });
+
+/* ---------- 접속 QR (튕긴 태블릿 다시 들어오기) ---------- */
+const studentUrl = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");   // 이 사이트의 학생 앱 주소
+let qrMade = false;
+function openQr(){
+  if (!qrMade) {
+    $("qrUrl").textContent = studentUrl.replace(/^https?:\/\//, "");
+    try { new QRCode($("qrImg"), { text: studentUrl, width: 880, height: 880, correctLevel: QRCode.CorrectLevel.M }); }
+    catch { $("qrImg").innerHTML = `<p style="color:#111;padding:20px">QR을 만들 수 없어요. 아래 주소로 접속하세요.</p>`; }
+    qrMade = true;
+  }
+  $("qrOv").classList.remove("hidden");
+}
+const closeQr = () => $("qrOv").classList.add("hidden");
+$("qrBtn").onclick = openQr; $("qrX").onclick = closeQr;
+$("qrOv").addEventListener("click", e => { if (e.target === $("qrOv")) closeQr(); });
 
 /* ---------- 빈 자리·팀 수·리셋 ---------- */
 $("teams").onclick = async e => {
