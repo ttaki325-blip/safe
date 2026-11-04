@@ -72,7 +72,8 @@
   .key b{color:var(--gold2)}
   .hint{color:var(--dim);font-size:13px;margin-top:8px}
 
-  .ov{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,8,14,.86);z-index:10;text-align:center;padding:20px}
+  .ov{position:fixed;inset:0;display:grid;place-items:safe center;background:rgba(5,8,14,.86);z-index:10;text-align:center;padding:20px;overflow-y:auto}
+  .ov .x{position:fixed;top:14px;right:18px;width:56px;height:56px;border-radius:50%;background:var(--panel2);border:2px solid var(--line);font-size:26px;z-index:11;cursor:pointer}
   .ov h2{font-family:'Black Han Sans',sans-serif;font-size:80px;margin:0;color:var(--gold);animation:pop .7s}
   .ov p{font-size:24px;margin:6px 0 18px}
   .podium{display:flex;align-items:flex-end;justify-content:center;gap:18px;margin:10px 0 18px}
@@ -106,6 +107,8 @@
   .banner p{margin:6px 0 0;font-size:28px}
   .banner .a{color:#ffb08a}.banner .d{color:#9fcbff}
   .count5{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:12;font-family:'Space Mono',monospace;font-size:260px;color:rgba(255,93,108,.85);text-shadow:0 0 40px rgba(0,0,0,.6)}
+  @media (max-height:760px){.ov h2{font-size:56px}.pd .medal{font-size:44px}.pd .tn{font-size:30px}
+    .pd.p1 .blk{height:130px}.pd.p2 .blk{height:90px}.pd.p3 .blk{height:64px}}
 </style>
 </head>
 <body>
@@ -160,7 +163,7 @@
   </div>
 </div>
 
-<div class="ov hidden" id="ov"><div>
+<div class="ov hidden" id="ov"><button class="x" id="ovX" title="닫기">✕</button><div>
   <h2 id="ovTitle">🏆 결과 발표</h2><p id="ovText"></p>
   <div class="podium" id="podium"></div>
   <div class="rest" id="rest"></div>
@@ -367,22 +370,27 @@ $("hintBtn").onclick = async () => {
 
 /* ---------- 결과 발표 ---------- */
 function award(title, text){
-  const ranks = SC.ranking(cls);
-  $("ovTitle").textContent = "🏆 " + title; $("ovText").textContent = text;
+  const ranks = SC.ranking(cls).filter(r => r.score > 0);   // 0점 팀은 시상대에서 빼요
+  $("ovTitle").textContent = "🏆 " + title;
+  $("ovText").textContent = ranks.length ? text : "아직 금고를 연 팀이 없어요!";
   const top = [2, 1, 3].map(k => ranks.filter(r => r.rank === k));
   $("podium").innerHTML = top.map((group, i) => {
     const k = [2, 1, 3][i];
     if (!group.length) return `<div class="pd p${k}" style="visibility:hidden"><div class="blk">${k}</div></div>`;
     return `<div class="pd p${k}"><div class="medal">${medal(k)}</div>
-      <div class="tn">${group.map(r => r.t + "팀").join(" · ")}</div><div class="ts">${group[0].score}점</div>
+      <div class="tn">${group.slice(0, 3).map(r => r.t + "팀").join(" · ")}${group.length > 3 ? ` 외 ${group.length - 3}팀` : ""}</div><div class="ts">${group[0].score}점</div>
       <div class="blk">${k}</div></div>`;
   }).join("");
   $("rest").innerHTML = ranks.filter(r => r.rank > 3).map(r => `<span>${r.rank}위 ${r.t}팀 · ${r.score}점</span>`).join("");
+  $("banner").classList.add("hidden"); clearTimeout(bannerT);   // 다른 알림이 시상대를 가리지 않게
   $("ov").classList.remove("hidden");
   setTimeout(confetti, 1100);
 }
 $("awardBtn").onclick = () => award("결과 발표", `${SC_CONFIG.GRADE}-${curClass}반 현재 순위`);
-$("ovClose").onclick = () => $("ov").classList.add("hidden");
+const closeAward = () => $("ov").classList.add("hidden");
+$("ovClose").onclick = closeAward; $("ovX").onclick = closeAward;
+$("ov").addEventListener("click", e => { if (e.target === $("ov")) closeAward(); });   // 바깥 어두운 곳을 눌러도 닫혀요
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeAward(); });
 
 /* ---------- 빈 자리·팀 수·리셋 ---------- */
 $("teams").onclick = async e => {
