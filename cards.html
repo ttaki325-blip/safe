@@ -38,6 +38,32 @@
   td.code{font-family:'Space Mono',monospace;font-size:18px;text-align:center;letter-spacing:3px}
   .board{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5mm;margin-top:3mm;font-size:10.5px}
   .board div{border:1px solid #ccc;border-radius:6px;padding:2mm}
+  /* 학생용 안내 */
+  .guide{grid-column:1/-1;padding:6.24mm 7.02mm;display:flex;flex-direction:column;gap:3.4mm}
+  .guide h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:11.36mm;margin:0;line-height:1;display:flex;align-items:baseline;gap:3.12mm}
+  .guide h1 small{font-family:'Noto Sans KR';font-size:4.02mm;font-weight:700;color:#666}
+  .mission{background:#111;color:#fff;border-radius:3.12mm;padding:3.12mm 3.9mm;font-size:5.42mm;font-weight:900}
+  .mission b{color:#f5c044}
+  .gsec{border:.7mm solid #111;border-radius:3.12mm;padding:2.73mm 3.51mm}
+  .gsec h2{margin:0 0 1.95mm;font-size:4.89mm;font-weight:900;display:flex;align-items:center;gap:1.56mm}
+  .gsec h2 i{font-style:normal;font-family:'Space Mono',monospace;background:#f5c044;border-radius:1.56mm;padding:0 1.56mm;font-size:4.37mm}
+  .gsec p{margin:0;font-size:3.75mm;line-height:1.55}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:2.34mm}
+  .role{border-radius:2.34mm;padding:2.34mm 2.73mm;font-size:3.75mm;line-height:1.5}
+  .role.at{background:#ffe8dc}.role.df{background:#dcecff}
+  .role b{font-size:4.19mm}
+  .talk{display:flex;flex-direction:column;gap:1.4mm}
+  .say{display:flex;gap:1.95mm;align-items:center;font-size:4.19mm}
+  .say span{border-radius:2.34mm;padding:1.25mm 2.73mm;font-weight:700}
+  .say.at span{background:#ffe8dc}.say.df{justify-content:flex-end}.say.df span{background:#dcecff}
+  .say em{font-style:normal;font-size:3.15mm;color:#666;min-width:9.36mm}
+  .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:1.95mm}
+  .flow div{background:#f3f4f8;border-radius:2.34mm;padding:2.34mm;font-size:3.58mm;line-height:1.45;text-align:center}
+  .flow div strong{display:block;font-size:4.11mm;margin-bottom:0.78mm}
+  .chips{display:flex;gap:1.56mm;flex-wrap:wrap;font-size:3.58mm}
+  .chips span{border:.4mm solid #111;border-radius:99px;padding:.6mm 2.34mm}
+  .blue{color:#1857b8;font-weight:900}.red{color:#c4142f;font-weight:900}
+  .promise{display:grid;grid-template-columns:1fr 1fr;gap:1.17mm 3.12mm;font-size:3.67mm;line-height:1.45}
   @media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none}}
 </style>
 </head>
@@ -45,9 +71,10 @@
 <div class="bar">
   <b>🖨️ 비밀 카드 인쇄</b>
   <label>사용할 카드 수 <select id="n"></select></label>
+  <label><input type="checkbox" id="withGuide" checked> 학생용 활동 안내 포함</label>
   <label>카드 종류 <select id="mode"><option value="clue">🕵️ 추리 카드 (힌트로 대답)</option><option value="easy">🙂 쉬운 카드 (정답 그대로)</option></select></label>
   <button onclick="print()">인쇄하기</button>
-  <span style="font-size:13px;opacity:.8">인쇄 설정: A4 · 배율 100% · 머리글/바닥글 끄기 · 점선대로 자르기 · 마지막 장(정답표)은 선생님만!</span>
+  <span style="font-size:13px;opacity:.8">인쇄 설정: A4 · 배율 100% · 머리글/바닥글 끄기 · 첫 장(활동 안내)은 화면에 띄우거나 팀마다 1장 · 점선대로 자르기 · 마지막 장(정답표)은 선생님만!</span>
 </div>
 <div id="out"></div>
 <script src="data.js"></script>
@@ -58,6 +85,65 @@ sel.innerHTML = Array.from({length: SC_CONFIG.MAX_TEAMS}, (_, i) => i + 1).rever
 sel.onchange = render;
 const modeSel = document.getElementById("mode");
 modeSel.onchange = render;
+const guideChk = document.getElementById("withGuide");
+guideChk.onchange = render;
+
+/* 학생용 활동 안내 (A4 한 장) */
+function guide(){
+  const clue = modeSel.value === "clue";
+  const talk = clue
+    ? `<div class="say at"><em>🗡️ 공격</em><span>How often do you exercise?</span></div>
+       <div class="say df"><span>I exercise <b>on Monday and Thursday.</b></span><em>🛡️ 수비</em></div>
+       <div class="say at"><em>🗡️ 공격</em><span>Twice a week?</span></div>
+       <div class="say df"><span><b>That's right!</b> &nbsp;(틀리면 No. Listen again.)</span><em>🛡️ 수비</em></div>
+       <div class="say at"><em>🗡️ 공격</em><span><b>Good for you!</b> / You should exercise more often.</span></div>`
+    : `<div class="say at"><em>🗡️ 공격</em><span>How often do you exercise?</span></div>
+       <div class="say df"><span>I exercise <b>twice a week.</b></span><em>🛡️ 수비</em></div>
+       <div class="say at"><em>🗡️ 공격</em><span><b>Good for you!</b> / You should exercise more often.</span></div>`;
+  const tr = SC_SCORE.TREASURE.map(x => x.pts);
+  return `<div class="page" style="grid-auto-rows:auto"><div class="guide">
+    <h1>🔐 SAFE CRACKER <small>금고 털이 요원 활동 안내</small></h1>
+    <div class="mission">🎯 미션: 친구 팀을 영어로 인터뷰해서 <b>다른 팀 금고를 열고</b> 점수를 모아라!</div>
+
+    <div class="gsec"><h2><i>1</i> 공격과 수비는 번갈아 가며!</h2>
+      <div class="two">
+        <div class="role at"><b>🗡️ 공격 시간</b><br>태블릿을 들고 둘이 같이 출동!<br>화면에 <b>주황색</b>으로 뜬 팀만 찾아갈 수 있어요.</div>
+        <div class="role df"><b>🛡️ 수비 시간</b><br>자리에 앉아 <b>비밀 카드</b>를 펴 두고<br>찾아온 팀의 질문에 대답해요.</div>
+      </div>
+      <p style="margin-top:2mm">⏱️ 교대 시간은 태블릿과 교실 앞 화면이 알려 줘요. &nbsp;👥 요원 A = 1·3번, 요원 B = 2·4번 질문·대답 담당</p>
+    </div>
+
+    <div class="gsec"><h2><i>2</i> 이렇게 대화해요</h2><div class="talk">${talk}</div></div>
+
+    <div class="gsec"><h2><i>3</i> 금고 여는 법</h2>
+      <div class="flow">
+        <div><strong>📝 대답 기록</strong>들은 대답을 질문마다<br>대답 보드에서 터치</div>
+        <div><strong>🧠 규칙 찾기</strong>대답 카드 4장이 나와요.<br><b>숨은 규칙</b>대로 줄 세우기!<br>(규칙은 비밀! 직접 찾아요)</div>
+        <div><strong>🔓 열기</strong>틀리면 <span class="blue">파란 카드 = 제자리</span><br><span class="red">빨간 카드 = 자리 틀림</span><br>끌어서 다시 바꾸기</div>
+      </div>
+      <p style="margin-top:2mm">🚨 같은 금고를 <b>${SC_CONFIG.ALARM_TRIES}번</b> 틀리면 경보! <b>${SC_CONFIG.ALARM_SEC}초</b> 동안 잠겨요. 막 누르지 말고 생각하기!</p>
+    </div>
+
+    <div class="gsec"><h2><i>4</i> 점수</h2>
+      <div class="chips">
+        <span>🔓 금고 열기 +${SC_SCORE.BASE}</span>
+        <span>🧠 규칙을 처음 찾은 팀 +${SC_SCORE.RULE.join("/")}</span>
+        <span>🎯 한 번에 성공 +${SC_SCORE.PERFECT}</span>
+        <span>🥇 그 금고를 먼저 열기 +${SC_SCORE.FIRST.join("/")}</span>
+        <span>💎 금고 속 보물 +${Math.min(...tr)}~${Math.max(...tr)}</span>
+      </div>
+    </div>
+
+    <div class="gsec"><h2>🤝 요원의 약속</h2>
+      <div class="promise">
+        <div>🤫 비밀 카드는 다른 팀에게 보여 주지 않기</div>
+        <div>🗣️ 카드 문장 그대로, 또박또박 말하기</div>
+        <div>🙋 못 알아들으면 "Pardon?" / "Can you say that again?"</div>
+        <div>🚶 교실에서는 걸어서 이동하기</div>
+      </div>
+    </div>
+  </div></div>`;
+}
 
 function card(t){
   const s = SC.safe(t);
@@ -79,7 +165,7 @@ function card(t){
 
 function render(){
   const n = +sel.value, ts = Array.from({length: n}, (_, i) => i + 1);
-  let html = "";
+  let html = guideChk.checked ? guide() : "";
   for (let i = 0; i < ts.length; i += 4) html += `<div class="page">${ts.slice(i, i+4).map(card).join("")}</div>`;
   html += `<div class="page" style="grid-auto-rows:auto"><div class="key">
     <h1>🔑 교사용 정답표</h1><p>⚠️ 학생에게 보여 주지 마세요 · 암호 규칙: 가장 자주 하는 질문 번호 → 가장 덜 하는 질문 번호 순서</p>
