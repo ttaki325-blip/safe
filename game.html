@@ -67,6 +67,14 @@
   .qk.wait{font-size:14px;font-weight:400;color:var(--dim)}
   .codebox.words{gap:8px}
   .codebox.words .digit{flex:1;width:auto;height:70px;font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:900;line-height:1.2;text-align:center;padding:4px;color:var(--green);position:relative}
+  .codebox.words .digit.filled{background:#13203a;border-color:#4b6aa0;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .codebox.words .digit.ok{background:#0f2f5c;border-color:var(--blue);color:#cfe6ff;box-shadow:0 0 0 3px rgba(90,169,255,.25)}
+  .codebox.words .digit.no{background:#4a1520;border-color:var(--red);color:#ffd0d6;box-shadow:0 0 0 3px rgba(255,93,108,.25)}
+  .codebox.words .digit.over{border-color:var(--gold);border-style:dashed;transform:scale(1.04)}
+  .codebox.words .digit.lift{opacity:.3}
+  .qk:not(:disabled){touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+  .ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg) scale(1.05);background:#2a3350;border:2px solid var(--gold);border-radius:14px;padding:12px 16px;font-weight:900;font-size:17px;box-shadow:0 12px 30px rgba(0,0,0,.5);white-space:nowrap}
+  .dndtip{font-size:13px;color:var(--dim);text-align:center;margin:-6px 0 10px}
   .codebox.words .digit i{position:absolute;top:3px;left:7px;font-style:normal;font-size:11px;color:var(--dim);font-family:'Space Mono',monospace}
   .rulehint{margin-top:10px;background:#2b2a14;border:1px solid #5a5220;color:#ffe9a8;border-radius:12px;padding:10px 14px;font-size:15px}
   .rulehint.hidden{display:none}
@@ -200,6 +208,7 @@
         <hr class="split">
         <div class="sec">② 금고 암호 <b>규칙을 찾아 대답 카드를 순서대로 누르세요!</b></div>
         <div class="codebox words" id="codeBox"></div>
+        <div class="dndtip">카드를 누르면 빈칸에 들어가요 · 칸끼리 끌어서 자리 바꾸기 · 칸을 누르면 빼기</div>
         <div class="qkeys" id="qkeys"></div>
         <div class="actions">
           <button class="btn" id="clearBtn">⌫ 지우기</button>
@@ -236,7 +245,10 @@ const ME_KEY = "sc_me";
 let me = load() || {};            // {cls, team}
 let cls = null;                   // 현재 반 데이터 (DB)
 let unwatch = null;
-let target = null, entry = [], code = [], cur = 0, cooldownUntil = 0;
+let target = null, entry = [], code = [null,null,null,null], cur = 0, cooldownUntil = 0;
+let feedback = null;   // 틀렸을 때 칸마다 맞음/틀림 {key, marks:[true,false,...]}
+const EMPTY = () => [null,null,null,null];
+const codeKey = () => code.join(",");
 const localOpened = new Map();    // 낙관적 반영: 금고 → 점수 정보
 const triesBy = {};               // 금고별 오답 횟수
 
@@ -349,12 +361,13 @@ function canGo(r, t){ return r.phase === "play" && !r.attackers.has(t) ? 1 : 0; 
 
 /* ---------- 3. 금고 열기 ---------- */
 const drafts = {};   // 라운드가 끝나 중간에 나와도 듣던 대답은 남겨 둬요
-function saveDraft(){ if (target) drafts[target] = { entry: entry.slice(), code: code.slice(), cur }; }
+function saveDraft(){ if (target) drafts[target] = { entry: entry.slice(), code: code.slice(), feedback, cur }; }
 function startCrack(t){
   target = t;
   const d = drafts[t];
   entry = d ? d.entry.slice() : [null,null,null,null];
-  code = d && d.code ? d.code.slice() : [];
+  code = d && d.code && d.code.length === 4 ? d.code.slice() : EMPTY();
+  feedback = d && d.feedback || null;
   cur = d ? d.cur : 0;
   $("crackTitle").textContent = `🔒 금고 ${t}번 팀 인터뷰`;
   showTries();
@@ -377,20 +390,73 @@ function renderCrack(){
   }).join("");
   $("ansFor").textContent = `→ Q${cur + 1}`;
   const ready = entry.every(n => n != null);
-  $("codeBox").innerHTML = [0,1,2,3].map(i =>
-    `<div class="digit ${ready && i === code.length ? 'cur' : ''}"><i>${i + 1}</i>${code[i] ? SC_ANSWERS[entry[code[i]-1]].en : ""}</div>`).join("");
+  if (!ready) code = EMPTY();
+  const firstEmpty = code.indexOf(null);
+  const marks = feedback && feedback.key === codeKey() ? feedback.marks : null;   // 카드를 옮기면 색이 사라져요
+  $("codeBox").innerHTML = [0,1,2,3].map(i => {
+    const q = code[i];
+    const cls2 = q ? "filled" + (marks ? (marks[i] ? " ok" : " no") : "") : (ready && i === firstEmpty ? "cur" : "");
+    const mark = marks && q ? (marks[i] ? " ✔" : " ✖") : "";
+    return `<div class="digit ${cls2}" data-i="${i}"><i>${i + 1}${mark}</i>${q ? SC_ANSWERS[entry[q-1]].en : ""}</div>`;
+  }).join("");
   $("qkeys").innerHTML = ready
-    ? [1,2,3,4].map(q => `<button class="qk" data-q="${q}" ${code.includes(q) || code.length >= 4 ? 'disabled' : ''}>${SC_ANSWERS[entry[q-1]].en}</button>`).join("")
+    ? [1,2,3,4].map(q => `<button class="qk" data-q="${q}" ${code.includes(q) ? 'disabled' : ''}>${SC_ANSWERS[entry[q-1]].en}</button>`).join("")
     : `<div class="qk wait" style="grid-column:1/-1">👂 대답 4개를 모두 기록하면 대답 카드가 나타나요</div>`;
-  $("openBtn").disabled = !ready || code.length < 4 || Date.now() < cooldownUntil;
+  $("openBtn").disabled = !ready || code.includes(null) || Date.now() < cooldownUntil;
   const h = (cls && cls.hint) || 0;
   $("ruleHint").classList.toggle("hidden", !h);
   if (h) $("ruleHint").innerHTML = `💡 <b>선생님 힌트 ${h}</b> · ` + SC_RULE_HINTS.slice(1, h + 1).join(" ");
 }
-$("qkeys").onclick = e => {
-  const b = e.target.closest(".qk"); if (!b || b.disabled) return;
-  code.push(+b.dataset.q); $("msg").textContent = ""; renderCrack();
-};
+/* 카드 넣기·빼기·자리 바꾸기 (손가락·마우스 둘 다) */
+function placeKey(q, slot){
+  if (slot == null) slot = code.indexOf(null);
+  if (slot < 0) return;
+  code[slot] = q;                       // 원래 있던 카드는 아래로 돌아가요
+}
+let drag = null;
+function onDown(e){
+  const key = e.target.closest(".qk:not(:disabled):not(.wait)");
+  const slot = e.target.closest(".digit.filled");
+  if (!key && !slot) return;
+  e.preventDefault();
+  const src = key ? { type: "key", q: +key.dataset.q, el: key } : { type: "slot", i: +slot.dataset.i, q: code[+slot.dataset.i], el: slot };
+  drag = { src, x: e.clientX, y: e.clientY, moved: false, ghost: null, over: null };
+  try { (key || slot).setPointerCapture(e.pointerId); } catch {}
+}
+function onMove(e){
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+  if (!drag.moved) {
+    drag.moved = true;
+    drag.ghost = document.createElement("div"); drag.ghost.className = "ghost";
+    drag.ghost.textContent = SC_ANSWERS[entry[drag.src.q - 1]].en;
+    document.body.appendChild(drag.ghost);
+    drag.src.el.classList.add("lift");
+  }
+  drag.ghost.style.left = e.clientX + "px"; drag.ghost.style.top = e.clientY + "px";
+  const over = document.elementFromPoint(e.clientX, e.clientY)?.closest("#codeBox .digit");
+  if (drag.over && drag.over !== over) drag.over.classList.remove("over");
+  drag.over = over || null; if (over) over.classList.add("over");
+}
+function onUp(e){
+  if (!drag) return;
+  const d = drag; drag = null;
+  d.ghost && d.ghost.remove(); d.src.el.classList.remove("lift"); d.over && d.over.classList.remove("over");
+  if (!d.moved) {                                    // 그냥 누른 경우
+    if (d.src.type === "key") placeKey(d.src.q);      // 카드 → 첫 빈칸
+    else code[d.src.i] = null;                        // 칸 → 빼기
+  } else {
+    const to = d.over ? +d.over.dataset.i : null;
+    if (d.src.type === "key") { if (to != null) placeKey(d.src.q, to); }
+    else if (to == null) code[d.src.i] = null;        // 칸 밖으로 끌어내면 빼기
+    else if (to !== d.src.i) { const t = code[to]; code[to] = code[d.src.i]; code[d.src.i] = t; }
+  }
+  $("msg").textContent = ""; renderCrack();
+}
+["codeBox", "qkeys"].forEach(id => $(id).addEventListener("pointerdown", onDown));
+document.addEventListener("pointermove", onMove);
+document.addEventListener("pointerup", onUp);
+document.addEventListener("pointercancel", onUp);
 $("qList").onclick = e => { const b = e.target.closest(".qrow"); if(!b) return; cur = +b.dataset.i; renderCrack(); };
 $("board").onclick = e => {
   const b = e.target.closest(".ab"); if(!b) return;
@@ -403,7 +469,11 @@ $("board").onclick = e => {
   $("msg").textContent = "";
   renderCrack();
 };
-$("clearBtn").onclick = () => { if (code.length) code.pop(); else entry[cur] = null; renderCrack(); };
+$("clearBtn").onclick = () => {
+  const last = [3,2,1,0].find(i => code[i] != null);
+  if (last != null) code[last] = null; else entry[cur] = null;
+  renderCrack();
+};
 $("backBtn").onclick = () => { saveDraft(); goHome(); };
 function showTries(){
   const n = triesBy[target] || 0;
@@ -417,6 +487,7 @@ $("openBtn").onclick = async () => {
   if (now < cooldownUntil || now < alarmUntil() || timeOver()) return;
   const r = SC.round(cls);
   if (SC.role(r, me.team) !== "attack" || !canGo(r, target)) { leaveCrack("라운드가 바뀌었어요"); return; }
+  if (code.includes(null)) return;
   const typed = code.join(""), answer = SC.codeOf(target);
   if (typed === answer) {
     delete drafts[target];
@@ -431,8 +502,8 @@ $("openBtn").onclick = async () => {
     try { await SCDB.markOpened(me.cls, me.team, target, info); }
     catch { $("net").textContent = "저장 실패 · 다시 연결 중"; }
   } else {
-    const right = [...typed].filter((d,i) => d === answer[i]).length;
-    code = [];
+    const marks = [...typed].map((d,i) => d === answer[i]);
+    feedback = { key: codeKey(), marks };            // 카드는 그대로 두고 색으로 알려 줘요
     const n = triesBy[target] = (triesBy[target] || 0) + 1;
     showTries();
     $("codeBox").classList.remove("shake"); void $("codeBox").offsetWidth; $("codeBox").classList.add("shake");
@@ -447,7 +518,7 @@ $("openBtn").onclick = async () => {
     }
     cooldownUntil = now + SC_CONFIG.WRONG_COOLDOWN_SEC * 1000;
     $("openBtn").disabled = true;
-    $("msg").textContent = `❌ 틀렸어요! 4자리 중 ${right}개가 제자리예요. 규칙을 다시 생각하거나, 대답을 다시 물어보세요.`;
+    $("msg").textContent = `❌ 틀렸어요! 🔵 파란 카드는 제자리, 🔴 빨간 카드는 자리가 틀렸어요. 끌어서 바꿔 보세요.`;
     renderCrack();
     setTimeout(() => renderCrack(), SC_CONFIG.WRONG_COOLDOWN_SEC * 1000);
   }
