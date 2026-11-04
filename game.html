@@ -48,6 +48,8 @@
   .back{background:var(--panel2);border-radius:12px;padding:10px 14px;font-weight:700}
   .qrow{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;padding:12px;border-radius:14px;border:2px solid transparent;margin-bottom:8px;background:var(--panel2);text-align:left;width:100%}
   .qrow.cur{border-color:var(--gold);background:#2b2a22}
+  .qrow.wrong{border-color:var(--red);background:#3a1820}
+  .qrow .ans .redo{color:#ff9aa6;font-weight:900;margin-left:6px}
   .qrow .q{font-size:19px;font-weight:700}
   .qrow .ans{grid-column:2;font-size:16px;color:var(--dim);min-height:22px}
   .qrow .ans b{color:var(--gold2)}
@@ -246,7 +248,8 @@ let me = load() || {};            // {cls, team}
 let cls = null;                   // 현재 반 데이터 (DB)
 let unwatch = null;
 let target = null, entry = [], code = [null,null,null,null], cur = 0, cooldownUntil = 0;
-let feedback = null;   // 틀렸을 때 칸마다 맞음/틀림 {key, marks:[true,false,...]}
+let feedback = null;
+let ansWrong = new Set();   // 확인해 보니 잘못 기록한 대답(질문 번호)   // 틀렸을 때 칸마다 맞음/틀림 {key, marks:[true,false,...]}
 const EMPTY = () => [null,null,null,null];
 const codeKey = () => code.join(",");
 const localOpened = new Map();    // 낙관적 반영: 금고 → 점수 정보
@@ -361,13 +364,14 @@ function canGo(r, t){ return r.phase === "play" && !r.attackers.has(t) ? 1 : 0; 
 
 /* ---------- 3. 금고 열기 ---------- */
 const drafts = {};   // 라운드가 끝나 중간에 나와도 듣던 대답은 남겨 둬요
-function saveDraft(){ if (target) drafts[target] = { entry: entry.slice(), code: code.slice(), feedback, cur }; }
+function saveDraft(){ if (target) drafts[target] = { entry: entry.slice(), code: code.slice(), feedback, ansWrong: [...ansWrong], cur }; }
 function startCrack(t){
   target = t;
   const d = drafts[t];
   entry = d ? d.entry.slice() : [null,null,null,null];
   code = d && d.code && d.code.length === 4 ? d.code.slice() : EMPTY();
   feedback = d && d.feedback || null;
+  ansWrong = new Set(d && d.ansWrong || []);
   cur = d ? d.cur : 0;
   $("crackTitle").textContent = `🔒 금고 ${t}번 팀 인터뷰`;
   showTries();
@@ -382,10 +386,10 @@ function renderCrack(){
   $("qList").innerHTML = s.acts.map((act,i) => {
     const agent = i % 2 === 0 ? "A" : "B";
     const n = entry[i];
-    return `<button class="qrow ${i===cur?'cur':''}" data-i="${i}">
+    return `<button class="qrow ${i===cur?'cur':''} ${ansWrong.has(i)?'wrong':''}" data-i="${i}">
       <span class="qnum">Q${i+1}</span>
       <span class="q">${SC.question(act)} <span class="chip ${agent.toLowerCase()}" style="font-size:12px;padding:3px 8px">요원 ${agent}</span></span>
-      <span class="ans">${n ? `→ <b>${SC_ANSWERS[n].en}.</b>` : (i===cur ? "👂 힌트 듣고 추리 → 말해서 확인 → 터치" : "")}</span>
+      <span class="ans">${n ? `→ <b>${SC_ANSWERS[n].en}.</b>` : (i===cur ? "👂 힌트 듣고 추리 → 말해서 확인 → 터치" : "")}${ansWrong.has(i) ? `<span class="redo">✖ 잘못 들었어요! 다시 물어보세요</span>` : ""}</span>
     </button>`;
   }).join("");
   $("ansFor").textContent = `→ Q${cur + 1}`;
@@ -461,7 +465,7 @@ $("qList").onclick = e => { const b = e.target.closest(".qrow"); if(!b) return; 
 $("board").onclick = e => {
   const b = e.target.closest(".ab"); if(!b) return;
   const n = +b.dataset.n, act = SC.safe(target).acts[cur];
-  entry[cur] = n;
+  entry[cur] = n; ansWrong.delete(cur);
   const r = $("react"); r.classList.remove("say"); void r.offsetWidth; r.classList.add("say");
   r.innerHTML = `🗣️ 요원 ${cur%2===0?'A':'B'}, 이렇게 말해요: <b>"${SC.reaction(act, n)}"</b>`;
   const next = entry.findIndex(x => x == null);
@@ -488,8 +492,10 @@ $("openBtn").onclick = async () => {
   const r = SC.round(cls);
   if (SC.role(r, me.team) !== "attack" || !canGo(r, target)) { leaveCrack("라운드가 바뀌었어요"); return; }
   if (code.includes(null)) return;
+  // ① 먼저 기록한 대답이 맞는지 확인 → ② 그다음 카드 순서(규칙) 확인
+  const badAns = [0,1,2,3].filter(i => entry[i] !== SC.ansOf(target, i));
   const typed = code.join(""), answer = SC.codeOf(target);
-  if (typed === answer) {
+  if (!badAns.length && typed === answer) {
     delete drafts[target];
     const tries = triesBy[target] || 0;
     const res = SC.scoreOpen(cls, me.team, target, tries);
@@ -502,8 +508,12 @@ $("openBtn").onclick = async () => {
     try { await SCDB.markOpened(me.cls, me.team, target, info); }
     catch { $("net").textContent = "저장 실패 · 다시 연결 중"; }
   } else {
-    const marks = [...typed].map((d,i) => d === answer[i]);
-    feedback = { key: codeKey(), marks };            // 카드는 그대로 두고 색으로 알려 줘요
+    if (badAns.length) {
+      ansWrong = new Set(badAns); feedback = null;     // 대답이 틀리면 순서 색은 보여 주지 않아요
+    } else {
+      const marks = [...typed].map((d,i) => d === answer[i]);
+      feedback = { key: codeKey(), marks };          // 카드는 그대로 두고 색으로 알려 줘요
+    }
     const n = triesBy[target] = (triesBy[target] || 0) + 1;
     showTries();
     $("codeBox").classList.remove("shake"); void $("codeBox").offsetWidth; $("codeBox").classList.add("shake");
@@ -518,7 +528,9 @@ $("openBtn").onclick = async () => {
     }
     cooldownUntil = now + SC_CONFIG.WRONG_COOLDOWN_SEC * 1000;
     $("openBtn").disabled = true;
-    $("msg").textContent = `❌ 틀렸어요! 🔵 파란 카드는 제자리, 🔴 빨간 카드는 자리가 틀렸어요. 끌어서 바꿔 보세요.`;
+    $("msg").textContent = badAns.length
+      ? `❌ 잘못 들은 대답이 있어요! 빨간 질문(${badAns.map(i => "Q" + (i + 1)).join(", ")})을 다시 물어보세요: "Can you say that again?"`
+      : `❌ 대답은 다 맞았어요! 순서가 틀렸어요. 🔵 파란 카드는 제자리, 🔴 빨간 카드는 자리가 틀렸어요.`;
     renderCrack();
     setTimeout(() => renderCrack(), SC_CONFIG.WRONG_COOLDOWN_SEC * 1000);
   }

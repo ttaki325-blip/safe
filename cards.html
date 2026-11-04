@@ -39,7 +39,7 @@
   .board{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5mm;margin-top:3mm;font-size:10.5px}
   .board div{border:1px solid #ccc;border-radius:6px;padding:2mm}
   /* 학생용 안내 */
-  .guide{grid-column:1/-1;padding:6.24mm 7.02mm;display:flex;flex-direction:column;gap:3.4mm}
+  .guide{grid-column:1/-1;padding:6.24mm 7.02mm;display:flex;flex-direction:column;gap:2.4mm}
   .guide h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:11.36mm;margin:0;line-height:1;display:flex;align-items:baseline;gap:3.12mm}
   .guide h1 small{font-family:'Noto Sans KR';font-size:4.02mm;font-weight:700;color:#666}
   .mission{background:#111;color:#fff;border-radius:3.12mm;padding:3.12mm 3.9mm;font-size:5.42mm;font-weight:900}
@@ -119,7 +119,7 @@ function guide(){
       <div class="flow">
         <div><strong>📝 대답 기록</strong>들은 대답을 질문마다<br>대답 보드에서 터치</div>
         <div><strong>🧠 규칙 찾기</strong>대답 카드 4장이 나와요.<br><b>숨은 규칙</b>대로 줄 세우기!<br>(규칙은 비밀! 직접 찾아요)</div>
-        <div><strong>🔓 열기</strong>틀리면 <span class="blue">파란 카드 = 제자리</span><br><span class="red">빨간 카드 = 자리 틀림</span><br>끌어서 다시 바꾸기</div>
+        <div><strong>🔓 열기</strong>잘못 들은 질문 → <span class="red">빨간 줄</span>, 다시 묻기<br><span class="blue">파랑 = 제자리</span> · <span class="red">빨강 = 자리 틀림</span></div>
       </div>
       <p style="margin-top:2mm">🚨 같은 금고를 <b>${SC_CONFIG.ALARM_TRIES}번</b> 틀리면 경보! <b>${SC_CONFIG.ALARM_SEC}초</b> 동안 잠겨요. 막 누르지 말고 생각하기!</p>
     </div>
