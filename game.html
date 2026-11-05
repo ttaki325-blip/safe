@@ -530,7 +530,9 @@ $("openBtn").onclick = async () => {
     }
     cooldownUntil = now + SC_CONFIG.WRONG_COOLDOWN_SEC * 1000;
     $("openBtn").disabled = true;
-    $("msg").textContent = `❌ 열리지 않아요! 🔵 파랑 = 맞아요 · 🔴 빨강 = 자리가 틀렸거나, 대답을 잘못 들었을 수도 있어요.`;
+    $("msg").textContent = marks.filter(Boolean).length === 3
+      ? `❌ 열리지 않아요! 💡 3개가 파랑이면 자리 문제가 아니에요. 빨간 카드의 대답을 다시 물어볼까요? "Can you say that again?"`
+      : `❌ 열리지 않아요! 🔵 파랑 = 맞아요 · 🔴 빨강 = 자리가 틀렸거나, 대답을 잘못 들었을 수도 있어요.`;
     renderCrack();
     setTimeout(() => renderCrack(), SC_CONFIG.WRONG_COOLDOWN_SEC * 1000);
   }
