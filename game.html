@@ -151,6 +151,7 @@
     <span class="title">🔐 SAFE CRACKER</span>
     <span class="chip" id="who">요원 등록 전</span>
     <span class="sp"></span>
+    <span class="chip hidden" id="pendChip" style="background:#3a2c10;color:var(--gold2)"></span>
     <span class="chip"><i class="dot" id="dot"></i><span id="net">연결 중</span></span>
     <button class="gear" id="gear" title="설정">⚙️</button>
   </header>
@@ -277,9 +278,15 @@ let lastReset = null, lastPen = null;
 function onData(){
   if (lastReset !== null && cls.resetAt && cls.resetAt !== lastReset) {
     localOpened.clear(); localAlarm = 0;
+    pending = pending.filter(p => p.cls !== me.cls); savePending();   // 선생님이 리셋하면 대기 중인 기록도 버려요
     [triesBy, drafts].forEach(o => Object.keys(o).forEach(k => delete o[k]));
   }
   lastReset = cls.resetAt || 0;
+  if (pending.length) {
+    const before = pending.length;
+    pending = pending.filter(p => !(p.cls === me.cls && SC.openedOf(cls, p.team).includes(p.safe)));
+    if (pending.length !== before) savePending();
+  }
   // 선생님이 감점을 주면 우리 태블릿에 알림
   const pen = me.team ? SC.penaltyOf(cls, me.team) : 0;
   if (lastPen !== null && pen > lastPen)
@@ -510,8 +517,7 @@ $("openBtn").onclick = async () => {
       `<div class="breakdown">${res.lines.map(l => `<div><span>${l.label}</span><b>+${l.pts}</b></div>`).join("")}
        <div class="sum"><span>합계</span><b>+${res.pts}</b></div></div>`, true);
     goHome();
-    try { await SCDB.markOpened(me.cls, me.team, target, info); }
-    catch { $("net").textContent = "저장 실패 · 다시 연결 중"; }
+    queueSave({ cls: me.cls, team: me.team, safe: target, info });   // 저장될 때까지 계속 다시 시도해요
   } else {
     // 칸마다: 자리도 맞고 + 그 카드의 대답도 맞게 들었을 때만 파란색 (어느 질문을 잘못 들었는지는 알려 주지 않아요)
     const marks = [...typed].map((d, i) => d === answer[i] && !badAns.includes(+d - 1));
@@ -537,6 +543,34 @@ $("openBtn").onclick = async () => {
     setTimeout(() => renderCrack(), SC_CONFIG.WRONG_COOLDOWN_SEC * 1000);
   }
 };
+
+/* ---------- 금고 기록 저장: 실패하면 저장될 때까지 다시 보내기 ---------- */
+const PEND_KEY = "sc_pending";
+let pending = (() => { try { return JSON.parse(localStorage.getItem(PEND_KEY)) || []; } catch { return []; } })();
+function savePending(){ try { localStorage.setItem(PEND_KEY, JSON.stringify(pending)); } catch {} showPending(); }
+function showPending(){
+  const n = pending.length;
+  $("pendChip").classList.toggle("hidden", !n);
+  if (n) $("pendChip").textContent = `⏳ 저장 중 ${n}개`;
+}
+function queueSave(job){
+  pending = pending.filter(p => !(p.cls === job.cls && p.team === job.team && p.safe === job.safe));
+  pending.push(job); savePending(); flushPending();
+}
+let flushing = false;
+async function flushPending(){
+  if (flushing || !pending.length) return;
+  flushing = true;
+  for (const job of pending.slice()) {
+    try {
+      await SCDB.markOpened(job.cls, job.team, job.safe, job.info);
+      pending = pending.filter(p => p !== job); savePending();
+    } catch { break; }                                  // 아직 연결이 안 되면 다음에 다시
+  }
+  flushing = false;
+}
+setInterval(flushPending, 4000);
+window.addEventListener("online", flushPending);
 
 /* ---------- 경보·타이머 (1초마다) ---------- */
 let localAlarm = 0;
@@ -616,6 +650,7 @@ $("gear").onclick = () => {
 };
 
 /* ---------- 시작 ---------- */
+showPending(); flushPending();
 if (me.cls) watch(me.cls);
 if (me.cls && me.team) goHome(); else renderSetup();
 </script>

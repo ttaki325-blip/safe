@@ -156,7 +156,7 @@ const SC = {
   },
   openedOf(cls, t) {
     const o = cls && cls.teams && cls.teams[t] && cls.teams[t].opened;
-    return o ? Object.keys(o).map(Number) : [];
+    return o ? Object.keys(o).filter(k => o[k] != null).map(Number) : [];   // 빈칸(null)은 세지 않아요
   },
   /* 팀 t가 열어야 할 금고 = 활성 팀 중 자기 빼고 */
   targetsOf(cls, t) { return SC.activeTeams(cls).filter(s => s !== t); },
@@ -170,7 +170,7 @@ const SC = {
   penaltyOf(cls, t) { return (cls && cls.teams && cls.teams[t] && cls.teams[t].penalty) || 0; },
   scoreOf(cls, t) {
     const o = cls && cls.teams && cls.teams[t] && cls.teams[t].opened;
-    const plus = o ? Object.values(o).reduce((sum, v) => sum + (SC.rec(v).pts || 0), 0) : 0;
+    const plus = o ? Object.values(o).filter(v => v != null).reduce((sum, v) => sum + (SC.rec(v).pts || 0), 0) : 0;
     return plus - SC.penaltyOf(cls, t) * SC_SCORE.PENALTY;
   },
   /* 금고 s를 이미 연 팀 수 (나 빼고) */
@@ -250,6 +250,14 @@ const SCDB = (() => {
   const remote = !!SC_CONFIG.DB_URL;
   const LKEY = "sc_local_db";
 
+  /* Firebase는 번호 키(1,2,3…)를 가끔 배열 [null, {...}] 로 돌려줘요.
+     빈칸(null)이 금고 하나로 세어지지 않도록, 받은 데이터를 항상 '번호: 값' 객체로 정리해요. */
+  function clean(v) {
+    if (Array.isArray(v)) { const o = {}; v.forEach((x, i) => { if (x != null) o[i] = clean(x); }); return o; }
+    if (v && typeof v === "object") { const o = {}; for (const k in v) if (v[k] != null) o[k] = clean(v[k]); return o; }
+    return v;
+  }
+
   const pathFor = (c, rest = "") => `${SC_CONFIG.DB_ROOT}/class${c}${rest ? "/" + rest : ""}`;
 
   function setIn(tree, path, value) {
@@ -294,7 +302,7 @@ const SCDB = (() => {
     let tree = null, es = null, closed = false, retry = 0;
 
     if (!remote) {
-      const fire = () => callback(local.get(path) || {});
+      const fire = () => callback(clean(local.get(path) || {}));
       window.addEventListener("storage", fire);
       window.addEventListener("sc-local", fire);
       onStatus("local"); fire();
@@ -309,7 +317,7 @@ const SCDB = (() => {
         if (patch) Object.entries(msg.data || {}).forEach(([k, v]) => { tree = setIn(tree, (msg.path + "/" + k), v); });
         else tree = setIn(tree, msg.path, msg.data);
         retry = 0; onStatus("online");
-        callback(tree || {});
+        callback(clean(tree || {}));
       };
       es.addEventListener("put", e => apply(e, false));
       es.addEventListener("patch", e => apply(e, true));
