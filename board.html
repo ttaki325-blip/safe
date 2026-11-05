@@ -226,13 +226,13 @@ $("teamCount").innerHTML = Array.from({length: SC_CONFIG.MAX_TEAMS - 1}, (_, i) 
   .map(n => `<option value="${n}">${n}팀</option>`).join("");
 $("roundSec").innerHTML = SC_CONFIG.ROUND_SEC_OPTIONS.map(s => `<option value="${s}">${SC.mmss(s * 1000)}</option>`).join("");
 $("roundSec").value = SC_CONFIG.ROUND_SEC_DEFAULT;
-/* 라운드 수: 홀·짝이 같은 횟수만큼 공격하도록 짝수, 기본 8라운드 */
+/* 라운드 수: 모든 팀이 서로 만나는 한 바퀴(★)를 기본으로 */
 function roundOptions(){
-  const def = SC_CONFIG.ROUND_COUNT_DEFAULT || 8, sec = +$("roundSec").value, keep = $("roundCount").value;
+  const cyc = SC.schedule(cls).length || 8, sec = +$("roundSec").value, keep = $("roundCount").value;
   const opts = [];
-  for (let n = 2; n <= 16; n += 2) opts.push(n);              // 홀·짝이 같은 횟수만큼 공격하도록 짝수로
-  $("roundCount").innerHTML = opts.map(n => `<option value="${n}">${n}라운드 · ${Math.round(n * sec / 60 * 10) / 10}분</option>`).join("");
-  $("roundCount").value = keep && opts.includes(+keep) && $("roundCount").dataset.touched ? keep : def;
+  for (let n = 4; n <= Math.max(16, cyc * 2); n++) opts.push(n);
+  $("roundCount").innerHTML = opts.map(n => `<option value="${n}">${n}라운드 · ${Math.round(n * sec / 60 * 10) / 10}분${n === cyc ? " ★" : ""}</option>`).join("");
+  $("roundCount").value = keep && opts.includes(+keep) && $("roundCount").dataset.touched ? keep : cyc;
 }
 $("roundSec").onchange = roundOptions;
 $("roundCount").onchange = () => { $("roundCount").dataset.touched = 1; };

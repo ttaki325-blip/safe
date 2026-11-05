@@ -159,10 +159,7 @@ const SC = {
     return o ? Object.keys(o).map(Number) : [];
   },
   /* 팀 t가 열어야 할 금고 = 활성 팀 중 자기 빼고 */
-  targetsOf(cls, t) {
-    const sch = SC.schedule(cls);
-    return SC.activeTeams(cls).filter(s => s !== t && sch.some(atk => atk.includes(t) && !atk.includes(s)));
-  },
+  targetsOf(cls, t) { return SC.activeTeams(cls).filter(s => s !== t); },
   progressOf(cls, t) {
     const targets = SC.targetsOf(cls, t);
     const opened = SC.openedOf(cls, t).filter(s => targets.includes(s));
@@ -210,12 +207,17 @@ const SC = {
     return { lines, pts: lines.reduce((s, l) => s + l.pts, 0), treasure: tr.icon };
   },
   /* ---------- 공격/수비 라운드 ----------
-     홀수 팀 공격(짝수 팀 수비) → 짝수 팀 공격(홀수 팀 수비) → 다시 홀수 … 번갈아 가며.
-     그래서 홀수 팀은 짝수 팀 금고를, 짝수 팀은 홀수 팀 금고를 열어요. */
+     팀 번호를 2진수로 보고, 자리(비트)마다 "1인 팀 공격 / 0인 팀 공격"을 한 번씩.
+     번호가 다른 두 팀은 적어도 한 자리가 다르므로, 한 바퀴(최대 8라운드) 안에
+     모든 팀이 서로를 공격할 기회를 한 번 이상 가져요. (첫 라운드는 홀수 팀 공격) */
   schedule(cls) {
-    const act = SC.activeTeams(cls);
-    const odd = act.filter(t => t % 2 === 1), even = act.filter(t => t % 2 === 0);
-    return [odd, even].filter(g => g.length && g.length < act.length);
+    const act = SC.activeTeams(cls), out = [];
+    const bits = Math.ceil(Math.log2(SC_CONFIG.MAX_TEAMS + 1));
+    for (let b = 0; b < bits; b++) for (const v of [1, 0]) {
+      const atk = act.filter(t => ((t >> b) & 1) === v);
+      if (atk.length && atk.length < act.length) out.push(atk);
+    }
+    return out;
   },
   roundEnd(cls) {
     const g = cls && cls.timer;
