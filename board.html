@@ -109,6 +109,14 @@
   .count5{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:12;font-family:'Space Mono',monospace;font-size:260px;color:rgba(255,93,108,.85);text-shadow:0 0 40px rgba(0,0,0,.6)}
   @media (max-height:760px){.ov h2{font-size:56px}.pd .medal{font-size:44px}.pd .tn{font-size:30px}
     .pd.p1 .blk{height:130px}.pd.p2 .blk{height:90px}.pd.p3 .blk{height:64px}}
+  /* 팀 메뉴 */
+  .tmenu .box{background:var(--panel);border:2px solid var(--line);border-radius:20px;padding:22px;min-width:min(420px,90vw);display:flex;flex-direction:column;gap:10px}
+  .tmenu h3{margin:0 0 6px;font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:40px;color:var(--gold)}
+  .tmenu .info{color:var(--dim);font-size:16px;margin-bottom:4px}
+  .tmenu button{padding:16px;border-radius:14px;font-size:20px;font-weight:900;background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+  .tmenu .pen{background:#4a1520;border-color:var(--red);color:#fff}
+  .tmenu .undo{color:var(--gold2)}
+  .team .pn{display:inline-block;margin-left:6px;font-size:13px;font-weight:900;color:#ff9aa6;background:#4a1520;border-radius:999px;padding:1px 8px}
   /* 접속 QR 창 */
   .qrov .qrbox{background:#fff;border-radius:24px;padding:22px;display:inline-block;margin:10px 0 14px}
   .qrov #qrImg img,.qrov #qrImg canvas{display:block;width:min(56vh,440px)!important;height:min(56vh,440px)!important;image-rendering:pixelated}
@@ -160,7 +168,7 @@
         <div>🛡️ <b>That's right!</b> / No. Listen again.</div>
         <div>🗡️ <b>Good for you!</b> / <b>You should</b> exercise <b>more often.</b></div>
       </div>
-      <div class="hint">팀 카드를 터치하면 빈 자리 ↔ 사용 자리로 바뀌어요. 빈 자리 금고는 모든 팀 미션에서 빠집니다.</div>
+      <div class="hint">팀 카드를 누르면 메뉴가 떠요: ⚠️ 감점(대답 안 해 준 팀) · ↩ 감점 취소 · 🪑 빈 자리 지정</div>
     </div>
     <aside class="lb">
       <h2>🏆 실시간 순위</h2>
@@ -175,6 +183,14 @@
   <div class="podium" id="podium"></div>
   <div class="rest" id="rest"></div>
   <button class="close" id="ovClose">닫기</button>
+</div></div>
+<div class="ov tmenu hidden" id="tMenu"><div class="box">
+  <h3 id="tmTitle">1팀</h3>
+  <div class="info" id="tmInfo"></div>
+  <button class="pen" id="tmPen">⚠️ 감점 −50 (질문에 대답을 안 해 줬어요)</button>
+  <button class="undo" id="tmUndo">↩ 감점 1번 취소</button>
+  <button id="tmEmpty">🪑 빈 자리로 지정</button>
+  <button id="tmClose">닫기</button>
 </div></div>
 <div class="ov qrov hidden" id="qrOv"><button class="x" id="qrX" title="닫기">✕</button><div>
   <h2>📱 다시 접속하기</h2>
@@ -210,13 +226,13 @@ $("teamCount").innerHTML = Array.from({length: SC_CONFIG.MAX_TEAMS - 1}, (_, i) 
   .map(n => `<option value="${n}">${n}팀</option>`).join("");
 $("roundSec").innerHTML = SC_CONFIG.ROUND_SEC_OPTIONS.map(s => `<option value="${s}">${SC.mmss(s * 1000)}</option>`).join("");
 $("roundSec").value = SC_CONFIG.ROUND_SEC_DEFAULT;
-/* 라운드 수: 모든 팀이 서로 만나는 한 바퀴(★)를 기본으로 */
+/* 라운드 수: 홀·짝이 같은 횟수만큼 공격하도록 짝수, 기본 8라운드 */
 function roundOptions(){
-  const cyc = SC.schedule(cls).length || 8, sec = +$("roundSec").value, keep = $("roundCount").value;
+  const def = SC_CONFIG.ROUND_COUNT_DEFAULT || 8, sec = +$("roundSec").value, keep = $("roundCount").value;
   const opts = [];
-  for (let n = 4; n <= Math.max(16, cyc * 2); n++) opts.push(n);
-  $("roundCount").innerHTML = opts.map(n => `<option value="${n}">${n}라운드 · ${Math.round(n * sec / 60 * 10) / 10}분${n === cyc ? " ★" : ""}</option>`).join("");
-  $("roundCount").value = keep && opts.includes(+keep) && $("roundCount").dataset.touched ? keep : cyc;
+  for (let n = 2; n <= 16; n += 2) opts.push(n);              // 홀·짝이 같은 횟수만큼 공격하도록 짝수로
+  $("roundCount").innerHTML = opts.map(n => `<option value="${n}">${n}라운드 · ${Math.round(n * sec / 60 * 10) / 10}분</option>`).join("");
+  $("roundCount").value = keep && opts.includes(+keep) && $("roundCount").dataset.touched ? keep : def;
 }
 $("roundSec").onchange = roundOptions;
 $("roundCount").onchange = () => { $("roundCount").dataset.touched = 1; };
@@ -258,11 +274,16 @@ function render(){
       ${alarm ? '<span class="al">🚨</span>' : ''}
       ${role ? `<span class="role ${role}">${role === "attack" ? "🗡️ 공격" : "🛡️ 수비"}</span>` : ""}
       <div class="h"><span class="no">${t}</span><span class="rk">${alarm || !rankOf[t] ? '' : medal(rankOf[t]) + (rankOf[t] > 3 ? '위' : '')}</span></div>
-      <div class="sc">${SC.scoreOf(cls, t)}<small style="font-size:14px;color:var(--dim)">점</small></div>
+      <div class="sc">${SC.scoreOf(cls, t)}<small style="font-size:14px;color:var(--dim)">점</small>${team.penalty ? `<span class="pn">⚠️ −${team.penalty * SC_SCORE.PENALTY}</span>` : ""}</div>
       <div class="bar"><i style="width:${p.total ? p.done/p.total*100 : 0}%"></i></div>
       <span class="cnt">${done ? "🏆 미션 완료" : `금고 ${p.done}/${p.total}`}</span></button>`;
   }).join("");
   setTimeout(() => document.querySelectorAll(".team.flash").forEach(el => el.classList.remove("flash")), 900);
+  const pens = Object.fromEntries(active.map(t => [t, SC.penaltyOf(cls, t)]));
+  if (!firstData && render.pens) active.forEach(t => {
+    if (pens[t] > (render.pens[t] || 0)) showBanner(`⚠️ ${t}팀 −${SC_SCORE.PENALTY}`, "질문에 대답을 안 해 줬어요! 카드 문장으로 또박또박 대답해 주세요");
+  });
+  render.pens = pens;
 
   $("lb").innerHTML = ranks.map(r => `<li class="${r.rank <= 3 && r.score > 0 ? 'top' + r.rank : ''}">
     <span class="r">${r.score > 0 ? medal(r.rank) : "-"}</span><span class="n">${r.t}팀<small>금고 ${r.done}개</small></span><span class="s">${r.score}</span></li>`).join("");
@@ -405,7 +426,7 @@ $("awardBtn").onclick = () => award("결과 발표", `${SC_CONFIG.GRADE}-${curCl
 const closeAward = () => $("ov").classList.add("hidden");
 $("ovClose").onclick = closeAward; $("ovX").onclick = closeAward;
 $("ov").addEventListener("click", e => { if (e.target === $("ov")) closeAward(); });   // 바깥 어두운 곳을 눌러도 닫혀요
-document.addEventListener("keydown", e => { if (e.key === "Escape") { closeAward(); closeQr(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeAward(); closeQr(); closeMenu(); } });
 
 /* ---------- 접속 QR (튕긴 태블릿 다시 들어오기) ---------- */
 const studentUrl = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");   // 이 사이트의 학생 앱 주소
@@ -424,12 +445,28 @@ $("qrBtn").onclick = openQr; $("qrX").onclick = closeQr;
 $("qrOv").addEventListener("click", e => { if (e.target === $("qrOv")) closeQr(); });
 
 /* ---------- 빈 자리·팀 수·리셋 ---------- */
-$("teams").onclick = async e => {
-  const b = e.target.closest(".team"); if(!b) return;
-  const t = +b.dataset.t, isEmpty = !!(cls.empty && cls.empty[t]);
-  if (!confirm(isEmpty ? `${t}번 자리를 다시 사용할까요?` : `${t}번을 빈 자리로 지정할까요?\n(모든 팀 미션에서 빠져요)`)) return;
+/* 팀 카드를 누르면 메뉴: 감점 / 감점 취소 / 빈 자리 */
+let menuTeam = null;
+function openMenu(t){
+  menuTeam = t;
+  const isEmpty = !!(cls.empty && cls.empty[t]), pen = SC.penaltyOf(cls, t);
+  $("tmTitle").textContent = `${t}팀`;
+  $("tmInfo").textContent = isEmpty ? "지금은 빈 자리예요" : `점수 ${SC.scoreOf(cls, t)}점 · 감점 ${pen}번`;
+  $("tmPen").textContent = `⚠️ 감점 −${SC_SCORE.PENALTY} (질문에 대답을 안 해 줬어요)`;
+  $("tmPen").hidden = isEmpty; $("tmUndo").hidden = isEmpty || !pen;
+  $("tmEmpty").textContent = isEmpty ? "🪑 이 자리 다시 사용하기" : "🪑 빈 자리로 지정 (모든 팀 미션에서 빠져요)";
+  $("tMenu").classList.remove("hidden");
+}
+const closeMenu = () => { $("tMenu").classList.add("hidden"); menuTeam = null; };
+$("teams").onclick = e => { const b = e.target.closest(".team"); if (b) openMenu(+b.dataset.t); };
+$("tmPen").onclick = async () => { const t = menuTeam; closeMenu(); audio(); await SCDB.setPenalty(curClass, t, SC.penaltyOf(cls, t) + 1); };
+$("tmUndo").onclick = async () => { const t = menuTeam; closeMenu(); await SCDB.setPenalty(curClass, t, SC.penaltyOf(cls, t) - 1); };
+$("tmEmpty").onclick = async () => {
+  const t = menuTeam, isEmpty = !!(cls.empty && cls.empty[t]); closeMenu();
   await SCDB.setEmpty(curClass, t, !isEmpty);
 };
+$("tmClose").onclick = closeMenu;
+$("tMenu").addEventListener("click", e => { if (e.target === $("tMenu")) closeMenu(); });
 $("teamCount").onchange = async () => {
   const n = +$("teamCount").value, emp = {};
   SC.teams().forEach(t => { if (t > n) emp[t] = true; });

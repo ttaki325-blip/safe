@@ -273,13 +273,18 @@ function watch(c){
     $("net").textContent = {online:"실시간 연결", offline:"재연결 중…", local:"테스트 모드", denied:"DB 권한 없음"}[st] || st;
   });
 }
-let lastReset = null;
+let lastReset = null, lastPen = null;
 function onData(){
   if (lastReset !== null && cls.resetAt && cls.resetAt !== lastReset) {
     localOpened.clear(); localAlarm = 0;
     [triesBy, drafts].forEach(o => Object.keys(o).forEach(k => delete o[k]));
   }
   lastReset = cls.resetAt || 0;
+  // 선생님이 감점을 주면 우리 태블릿에 알림
+  const pen = me.team ? SC.penaltyOf(cls, me.team) : 0;
+  if (lastPen !== null && pen > lastPen)
+    popup("⚠️", `감점 −${SC_SCORE.PENALTY}점`, `<p style="font-size:22px">선생님 감점이에요. 찾아온 팀의 질문에는<br><b>비밀 카드 문장으로 또박또박</b> 대답해 주세요!</p>`);
+  lastPen = pen;
   tick();
   if (me.team && cls.empty && cls.empty[me.team]) {      // 선생님이 내 자리를 빈 자리로 지정
     me.team = null; save(); renderSetup(); return;
@@ -307,7 +312,7 @@ function renderSeats(){
   $("seatList").innerHTML = SC.teams().map(t => `<button data-t="${t}" ${empty[t]?'disabled':''}>${t}</button>`).join("");
   $("seatList").onclick = e => {
     const b = e.target.closest("button"); if(!b || b.disabled) return;
-    me.team = +b.dataset.t; save(); goHome();
+    me.team = +b.dataset.t; save(); lastPen = null; goHome();
   };
 }
 

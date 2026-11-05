@@ -16,6 +16,7 @@ const SC_CONFIG = {
   ALARM_SEC: 30,                   // 경보가 울리면 이만큼 잠김
   ROUND_SEC_OPTIONS: [90, 120, 150, 180], // 라운드 길이(초) 선택지
   ROUND_SEC_DEFAULT: 120,
+  ROUND_COUNT_DEFAULT: 8,          // 기본 라운드 수 (2분 × 8 = 16분)
   SWITCH_WARN_SEC: 10              // 교대 몇 초 전부터 "곧 교대!" 알림
 };
 
@@ -24,7 +25,8 @@ const SC_SCORE = {
   BASE: 100,            // 금고 하나 열 때마다
   PERFECT: 50,          // 그 금고를 한 번에(오답 없이) 열면
   FIRST: [50, 30, 10],  // 그 금고를 반에서 1등·2등·3등으로 연 팀 보너스
-  RULE: [100, 60, 30],  // 암호 규칙을 반에서 1·2·3번째로 찾은 팀(첫 금고를 연 팀) 보너스
+  RULE: [100, 60, 30],
+  PENALTY: 50,          // 현황판에서 선생님이 주는 감점 1회 (질문에 대답을 안 해 준 팀 등)  // 암호 규칙을 반에서 1·2·3번째로 찾은 팀(첫 금고를 연 팀) 보너스
   TREASURE: [           // 금고 안 보물 (무작위)
     { icon: "🪙", name: "금화",     pts: 10, w: 40 },
     { icon: "💵", name: "돈다발",   pts: 20, w: 30 },
@@ -157,7 +159,10 @@ const SC = {
     return o ? Object.keys(o).map(Number) : [];
   },
   /* 팀 t가 열어야 할 금고 = 활성 팀 중 자기 빼고 */
-  targetsOf(cls, t) { return SC.activeTeams(cls).filter(s => s !== t); },
+  targetsOf(cls, t) {
+    const sch = SC.schedule(cls);
+    return SC.activeTeams(cls).filter(s => s !== t && sch.some(atk => atk.includes(t) && !atk.includes(s)));
+  },
   progressOf(cls, t) {
     const targets = SC.targetsOf(cls, t);
     const opened = SC.openedOf(cls, t).filter(s => targets.includes(s));
@@ -165,9 +170,11 @@ const SC = {
   },
   /* 기록 한 건: {ts, pts, ...} (예전 형식인 숫자도 허용) */
   rec(v) { return (v && typeof v === "object") ? v : { ts: v || 0, pts: SC_SCORE.BASE }; },
+  penaltyOf(cls, t) { return (cls && cls.teams && cls.teams[t] && cls.teams[t].penalty) || 0; },
   scoreOf(cls, t) {
     const o = cls && cls.teams && cls.teams[t] && cls.teams[t].opened;
-    return o ? Object.values(o).reduce((sum, v) => sum + (SC.rec(v).pts || 0), 0) : 0;
+    const plus = o ? Object.values(o).reduce((sum, v) => sum + (SC.rec(v).pts || 0), 0) : 0;
+    return plus - SC.penaltyOf(cls, t) * SC_SCORE.PENALTY;
   },
   /* 금고 s를 이미 연 팀 수 (나 빼고) */
   openersOf(cls, s, except) {
@@ -203,17 +210,12 @@ const SC = {
     return { lines, pts: lines.reduce((s, l) => s + l.pts, 0), treasure: tr.icon };
   },
   /* ---------- 공격/수비 라운드 ----------
-     팀 번호를 2진수로 보고, 자리(비트)마다 "1인 팀 공격 / 0인 팀 공격"을 한 번씩.
-     번호가 다른 두 팀은 적어도 한 자리가 다르므로, 한 바퀴(최대 8라운드) 안에
-     모든 팀이 서로를 공격할 기회를 한 번 이상 가져요. */
+     홀수 팀 공격(짝수 팀 수비) → 짝수 팀 공격(홀수 팀 수비) → 다시 홀수 … 번갈아 가며.
+     그래서 홀수 팀은 짝수 팀 금고를, 짝수 팀은 홀수 팀 금고를 열어요. */
   schedule(cls) {
-    const act = SC.activeTeams(cls), out = [];
-    const bits = Math.ceil(Math.log2(SC_CONFIG.MAX_TEAMS + 1));
-    for (let b = 0; b < bits; b++) for (const v of [1, 0]) {
-      const atk = act.filter(t => ((t >> b) & 1) === v);
-      if (atk.length && atk.length < act.length) out.push(atk);
-    }
-    return out;
+    const act = SC.activeTeams(cls);
+    const odd = act.filter(t => t % 2 === 1), even = act.filter(t => t % 2 === 0);
+    return [odd, even].filter(g => g.length && g.length < act.length);
   },
   roundEnd(cls) {
     const g = cls && cls.timer;
@@ -345,6 +347,7 @@ const SCDB = (() => {
     startRounds: (c, roundSec, rounds) => put(pathFor(c, "timer"), { startAt: { ".sv": "timestamp" }, roundSec, rounds }),
     stopRounds: c => put(pathFor(c, "timer"), null),
     setHint: (c, level) => put(pathFor(c, "hint"), level || null),
+    setPenalty: (c, team, n) => put(pathFor(c, `teams/${team}/penalty`), n > 0 ? n : null),
     setEmpty: (c, team, isEmpty) => put(pathFor(c, `empty/${team}`), isEmpty ? true : null),
     setEmptyAll: (c, emptyObj) => put(pathFor(c, "empty"), Object.keys(emptyObj).length ? emptyObj : null),
     resetClass: (c, keepEmpty) => put(pathFor(c), { empty: keepEmpty || null, resetAt: { ".sv": "timestamp" } }),
